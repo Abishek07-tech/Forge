@@ -1,7 +1,11 @@
-import { projects } from "../data/projects";
 import ProjectCard from "../components/ProjectCard";
+import { Project } from "../types/project";
 
-export default function Home() {
+export default async function Home() {
+  const response = await fetch("http://localhost:3000/api/projects");
+
+  const projects: Project[] = await response.json();
+
   return (
     <main>
       <h1>Control Platform</h1>
