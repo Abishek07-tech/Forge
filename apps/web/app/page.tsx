@@ -1,10 +1,12 @@
-import ProjectCard from "../components/ProjectCard";
+import ProjectDashboard from "../components/ProjectDashboard";
 import { Project } from "../types/project";
 
 export default async function Home() {
   const response = await fetch("http://localhost:3000/api/projects");
 
-  const projects: Project[] = await response.json();
+  const result = await response.json();
+
+  const projects: Project[] = result.data;
 
   return (
     <main>
@@ -14,27 +16,7 @@ export default async function Home() {
         Manage your applications and infrastructure.
       </p>
 
-      <section>
-        <h2>Overview</h2>
-
-        <p>Projects: {projects.length}</p>
-
-        <p>
-          Running:{" "}
-          {projects.filter((project) => project.status === "running").length}
-        </p>
-      </section>
-
-      <section>
-        <h2>Projects</h2>
-
-        {projects.map((project) => (
-          <ProjectCard
-            key={project.id}
-            project={project}
-          />
-        ))}
-      </section>
+      <ProjectDashboard initialProjects={projects} />
     </main>
   );
 }
