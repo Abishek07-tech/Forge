@@ -8,31 +8,54 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const body = await request.json();
+  try {
+    const body = await request.json();
 
-  if (!body.name) {
+    if (
+      !body.name ||
+      typeof body.name !== "string" ||
+      !body.name.trim()
+    ) {
+      return Response.json(
+        {
+          success: false,
+          error: "Project name is required",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    const projectName = body.name.trim();
+
+    const newProject = {
+      id: `p${projects.length + 1}`,
+      name: projectName,
+      status: "stopped" as const,
+      deployments: 0,
+    };
+
+    projects.push(newProject);
+
+    return Response.json(
+      {
+        success: true,
+        data: newProject,
+      },
+      {
+        status: 201,
+      }
+    );
+  } catch {
     return Response.json(
       {
         success: false,
-        error: "Project name is required",
+        error: "Invalid request body",
       },
       {
         status: 400,
       }
     );
   }
-
-  const newProject = {
-    id: `p${projects.length + 1}`,
-    name: body.name,
-    status: "stopped" as const,
-    deployments: 0,
-  };
-
-  projects.push(newProject);
-
-  return Response.json({
-    success: true,
-    data: newProject,
-  });
 }
