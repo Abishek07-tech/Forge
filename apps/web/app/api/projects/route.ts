@@ -1,10 +1,26 @@
-import { projects } from "../../../data/projects";
+import { prisma } from "../../../lib/prisma";
 
 export async function GET() {
-  return Response.json({
-    success: true,
-    data: projects,
-  });
+  try {
+    const projects = await prisma.project.findMany({
+      orderBy: { name: "asc" },
+    });
+
+    return Response.json({
+      success: true,
+      data: projects,
+    });
+  } catch {
+    return Response.json(
+      {
+        success: false,
+        error: "Failed to fetch projects",
+      },
+      {
+        status: 500,
+      }
+    );
+  }
 }
 
 export async function POST(request: Request) {
@@ -29,24 +45,35 @@ export async function POST(request: Request) {
 
     const projectName = body.name.trim();
 
-    const newProject = {
-      id: `p${projects.length + 1}`,
-      name: projectName,
-      status: "stopped" as const,
-      deployments: 0,
-    };
+    try {
+      const newProject = await prisma.project.create({
+        data: {
+          name: projectName,
+          status: "stopped",
+          deployments: 0,
+        },
+      });
 
-    projects.push(newProject);
-
-    return Response.json(
-      {
-        success: true,
-        data: newProject,
-      },
-      {
-        status: 201,
-      }
-    );
+      return Response.json(
+        {
+          success: true,
+          data: newProject,
+        },
+        {
+          status: 201,
+        }
+      );
+    } catch {
+      return Response.json(
+        {
+          success: false,
+          error: "Failed to create project",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
   } catch {
     return Response.json(
       {
