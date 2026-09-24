@@ -2,7 +2,7 @@
 
 > Single source of truth for the FORGE control-platform project.
 > Keep this document updated whenever a major engineering area changes.
-> Last updated: 2026-09-23
+> Last updated: 2026-09-24
 
 ---
 
@@ -107,15 +107,18 @@ Desired State
 
 ## 5. Current Development Stage
 
-**Stage: "Foundation / Web + Database Integration"**
+**Stage: "Foundation + Desired State Design"**
 
-- The basic project-management foundation is working.
-- PostgreSQL persistence is working and verified across server restarts.
-- The Project model is migrated and the API reads/writes real data from the
-  database.
-- The next development work must begin moving toward the larger FORGE
-  control-plane architecture — but starting from the foundation already built,
-  not by redoing the database layer.
+- The web + database foundation is working (Project API, PostgreSQL
+  persistence, verified across restarts).
+- Day 8 (Works 44–49) completed the **conceptual Desired State design
+  phase**: concept (44), data model (45), desired vs actual / drift (46),
+  API contract (47), architecture review (48), and persistence strategy (49).
+- These are **designs only**. No Desired State system is implemented: no
+  storage, no API, no validation code, no Actual State collection, no drift
+  detection, no reconciliation.
+- The next phase moves from **design to implementation** — starting from the
+  foundation already built, not by redoing the database layer.
 
 ---
 
@@ -141,9 +144,12 @@ control-platform/  (repo root = Forge/control-panel)
 │   └── node-agent/          ← placeholder (empty)
 ├── packages/                ← placeholder (empty)
 ├── docs/
-│   ├── PROJECT_STATUS.md    ← this document
+│   ├── PROJECT_STATUS.md              ← this document
 │   ├── architecture.md
-│   └── desired-state.md
+│   ├── desired-state.md               (Work 44, concept)
+│   ├── desired-vs-actual.md           (Work 46, comparison + drift)
+│   ├── desired-state-api.md           (Work 47, API contract)
+│   └── desired-state-persistence.md   (Work 49, storage strategy)
 └── README.md
 ```
 
@@ -218,6 +224,20 @@ Checklist of work actually completed in the repository:
 - [x] Database persistence verified across server restart
 - [x] Old in-memory project storage removed (`data/projects.ts`)
 - [x] Final TypeScript / API / database verification completed (Work 42)
+- [x] Desired State concept defined (`docs/desired-state.md`) — Work 44
+- [x] Desired State conceptual data model designed (Project → Application / Runtime / Resources / Environment / Deployment / Health) — Work 45
+- [x] Desired State vs Actual State and Drift design defined (`docs/desired-vs-actual.md`; drift categories: Missing, Extra, Changed, Unhealthy, Configuration mismatch, Version mismatch) — Work 46
+- [x] Desired State API contract designed (`docs/desired-state-api.md`) — Work 47, **designed only, NOT implemented**
+- [x] Desired State design reviewed against the FORGE architecture — Work 48, no contradictions found
+- [x] Desired State persistence strategy designed (`docs/desired-state-persistence.md`; hybrid relational metadata + JSONB payload) — Work 49, **designed only, Prisma/PostgreSQL NOT changed**
+
+### Note: desired-state-model.md (Work 45)
+
+The standalone `docs/desired-state-model.md` file is **not present in the
+repository**. The conceptual data structure it was meant to record is captured
+in `docs/desired-state.md` §4 (Project, Application, Runtime, Resources,
+Environment, Deployment, Health) and referenced consistently by the other
+Desired State design documents.
 
 ### Note: PostgreSQL authentication issue (resolved)
 
@@ -277,7 +297,7 @@ Checkbox legend: `[ ] Not started` · `[~] In progress` · `[x] Completed`
 | 1 | Web Console | [~] |
 | 2 | API Layer | [~] |
 | 3 | Control Plane | [ ] |
-| 4 | Desired State System | [ ] |
+| 4 | Desired State System | [~] |
 | 5 | Reconciliation Engine | [ ] |
 | 6 | Node Agent | [ ] |
 | 7 | Scheduler | [ ] |
@@ -316,6 +336,9 @@ Checkbox legend: `[ ] Not started` · `[~] In progress` · `[x] Completed`
   APIs) remains.
 - **Documentation (27)** — `[~]` Architecture, desired-state, and this master
   status document exist. Ongoing.
+- **Desired State System (4)** — `[~]` Conceptual design complete (Works
+  44–49: concept, data model, desired vs actual / drift, API contract,
+  persistence strategy, architecture review). Implementation not started.
 
 ---
 
@@ -338,9 +361,11 @@ Checkbox legend: `[ ] Not started` · `[~] In progress` · `[x] Completed`
 - **Major work:** Core service design; state store; job orchestration;
   communication with the API, scheduler, queue, and agents.
 
-#### 4. Desired State System — `[ ] Not started`
+#### 4. Desired State System — `[~] In progress`
 - **Goal:** Let a developer declare an environment (replicas, resources,
   images, health rules) that FORGE must realize.
+- **Status:** Conceptual design phase complete (Works 44–49). Implementation
+  not started.
 - **Major work:** Desired-state schema/type; storage; validation; "desired vs.
   actual" comparison source.
 
@@ -476,39 +501,59 @@ Checkbox legend: `[ ] Not started` · `[~] In progress` · `[x] Completed`
 - In-memory storage fully removed; API is database-backed end-to-end.
 - Final verification passed: TypeScript clean, `prisma migrate status`
   up-to-date, GET/POST returning persisted data.
+- Desired State design phase completed (Works 44–49): concept, data model,
+  desired vs actual + drift, API contract, architecture review,
+  persistence strategy. **Design only — not implemented.**
 
 ### What is currently in progress
-- No work block is currently active. The last completed block was the final
-  database/API verification (repo state is at "Foundation / Web + Database
-  Integration").
+- No work block is currently active. The last completed block closed Day 8:
+  the Desired State design phase. No code changes accompanied it.
 
 ### What comes next
-- Begin the next engineering area below (project management completion on the
-  Web Console + API Layer) and only then move into the control-plane systems.
+- Move the Desired State design into **implementation** — starting with
+  Desired State database persistence and the Desired State API, per the
+  documented implementation paths.
 
 ---
 
 ## 12. Next Immediate Work
 
-**Complete project management on the Web Console + API Layer** (project
-detail/update/delete + lifecycle actions), as the next work block.
+**Begin implementing the Desired State system** — moving from design to
+implementation.
 
-**Why this step first:**
+Day 8 produced the full conceptual Desired State design (Works 44–49). The
+immediate next phase is to make it real, following the documented path in
+`docs/desired-state-persistence.md` §15 and `docs/desired-state-api.md` §14:
 
-1. The database foundation already handles the `Project` entity; the next
-   layer of value is full project *management* — not just list/create.
-2. The control plane will ultimately *act on* projects (deploy, scale,
-   reconcile, retire). Before any control-plane system exists, the console and
-   API need to fully define and mutate project state; otherwise the control
-   plane would be built on an incomplete management surface.
-3. Completing project detail/update/status/delete exercises the same
-   API → Prisma → PostgreSQL path that every deeper FORGE feature will reuse,
-   locking in the patterns (validation, error handling, singleton client)
-   before the architecture scope grows.
+```
+Persistence Design
+    ↓
+Prisma Domain Model
+    ↓
+Migration
+    ↓
+PostgreSQL Persistence
+    ↓
+API Integration
+    ↓
+Control Plane Integration
+```
 
-> This is a deliberate ordering: finish the management surface that everything
-> else consumes, **then** move into Services (`apps/api`, `services/
-> control-plane`) and the desired-state/reconciliation architecture.
+Planned order of the first implementation work:
+
+1. **Prisma domain model + migration** — persist Desired State versions
+   (relational metadata header + structured payload), scoped to `Project`,
+   without changing the existing `Project` table.
+2. **Desired State API** — implement the documented contract
+   (`/api/projects/{projectId}/desired-state`) behind validation.
+3. **Control Plane integration** — hand stored Desired State to the control
+   plane (that component itself remains a later engineering area).
+
+> The Desired State systems (storage, API, validation, Actual State, drift
+> detection, reconciliation) are **not implemented yet**. This section
+> describes the *next* phase, not completed work. The earlier project
+> management completion items (project detail/update/delete) remain noted
+> under the Web Console and API Layer roadmap areas.
 
 ---
 
@@ -519,7 +564,7 @@ detail/update/delete + lifecycle actions), as the next work block.
 | Total target | **120 days** |
 | Start date | **2026-09-12** (derived from the first Git commit: `c21e802 day 1 complete to define platform architecture`) |
 | Target completion date | **2027-01-10** (2026-09-12 + 120 days) |
-| Current day / stage | **Day 11 of 120** (as of 2026-09-23) — Foundation / Web + Database Integration |
+| Current day / stage | **Day 8 of 120** (as of 2026-09-24) — Foundation complete; Desired State design phase complete (Works 44–49) |
 
 ---
 
@@ -527,14 +572,14 @@ detail/update/delete + lifecycle actions), as the next work block.
 
 | Item | Value |
 |---|---|
-| Overall project status | Foundation complete; control-plane architecture not started |
-| Completed engineering areas | Database/ORM foundation; project API GET/POST; persistence (sub-parts of areas 1, 2, 27) |
-| Active engineering area | (none — between work blocks) |
-| Next engineering area | Web Console + API Layer (project management completion) |
+| Overall project status | Foundation complete; Desired State design phase complete; Desired State implementation not started |
+| Completed engineering areas | Database/ORM foundation; project API GET/POST; persistence; Desired State System conceptual design (area 4, design portion); documentation (27) |
+| Active engineering area | Desired State System — design phase complete; implementation pending |
+| Next engineering area | Desired State System implementation (persistence → API → control-plane hand-off) |
 | Blockers | None currently |
-| Technical debt | Test rows from verification remained in `forge` DB; placeholder directories empty but intentional |
+| Technical debt | Test rows from verification remained in `forge` DB; placeholder directories empty but intentional; `desired-state-model.md` (Work 45) absent as a standalone file — model captured in `desired-state.md` §4 |
 | Important decisions | See Decision Log below |
-| Last verified state | 2026-09-23 — TypeScript clean, migration up-to-date, GET/POST persisted correctly |
+| Last verified state | 2026-09-24 — Works 44–49 design verified against FORGE architecture (Work 48 review, no contradictions); DB/API foundation still: TypeScript clean, migration up-to-date, GET/POST persisted correctly |
 
 ---
 
@@ -586,25 +631,21 @@ detail/update/delete + lifecycle actions), as the next work block.
 
 ## 18. Current Git State
 
-Checked 2026-09-23. The repository has **5 commits**; the latest committed
-state is `535449e feat: improve project API reliability`. There are
-**uncommitted changes** from the database/API integration works (all
-intentional, not yet committed):
+Checked 2026-09-24. The repository has **6 commits**; the latest committed
+state is `f0a8529 feat: add PostgreSQL persistence and project status docs`.
+There are **uncommitted changes** — all documentation from the Day 8 design
+works (Works 44–49), intentional and not yet committed:
 
 ```
- M apps/web/app/api/projects/route.ts      GET/POST now PostgreSQL-backed (Works 38–39)
- D apps/web/data/projects.ts               in-memory storage removed (Work 41)
- M apps/web/package.json                   added @prisma/adapter-pg + pg (Work 37)
- M apps/web/package-lock.json              dependency tree update (Work 37)
-?? apps/web/generated/                     generated Prisma client
-?? apps/web/lib/prisma.ts                  reusable Prisma client (Work 37)
-?? apps/web/prisma.config.ts               Prisma config (Work 33)
-?? apps/web/prisma/                        schema + initial_project migration (Works 34–35)
+ M docs/desired-state.md                 Desired State concept (Work 44)
+?? docs/desired-vs-actual.md             Desired vs Actual + Drift (Work 46)
+?? docs/desired-state-api.md             Desired State API contract (Work 47)
+?? docs/desired-state-persistence.md     Persistence strategy (Work 49)
 ```
 
-Per working rules, these changes will be committed as one or several
-meaningful commits when the next work block begins — **nothing has been
-committed or pushed for the database/API work yet.**
+Per working rules, these will be committed with a clear conventional message
+when the next work block begins — **nothing has been committed or pushed for
+the Works 44–49 design work yet.**
 
 ---
 
@@ -617,9 +658,9 @@ committed or pushed for the database/API work yet.**
    - `npx tsc --noEmit`
    - `npx prisma migrate status`
    - start the app and confirm `GET` / `POST /api/projects` behave against PostgreSQL.
-4. **Continue from the first unfinished engineering area** — complete project
-   management on the Web Console + API Layer, then move toward the
-   control-plane services.
+4. **Continue from the next phase** — begin implementing the Desired State
+   system (persistence → API → control-plane hand-off), moving the Day 8
+   design into real code.
 5. **Update `PROJECT_STATUS.md`** after major milestones (new engineering area
    started/completed, architecture changes, deadline/schedule changes).
 6. **Commit meaningful completed work** — with clear, conventional messages;
@@ -628,4 +669,4 @@ committed or pushed for the database/API work yet.**
 ---
 
 *This document distinguishes **implemented** from **planned**. Checkbox marks
-reflect work actually done in the repository as of 2026-09-23.*
+reflect work actually done in the repository as of 2026-09-24.*
