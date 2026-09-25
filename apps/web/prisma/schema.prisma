@@ -15,8 +15,21 @@ enum ProjectStatus {
 }
 
 model Project {
-  id          String        @id @default(cuid())
-  name        String
-  status      ProjectStatus
-  deployments Int
+  id            String          @id @default(cuid())
+  name          String
+  status        ProjectStatus
+  deployments   Int
+  desiredStates DesiredState[]
+}
+
+model DesiredState {
+  desiredStateId String   @id @default(cuid())
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id])
+  version        Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  data           Json
+
+  @@unique([projectId, version])
 }
