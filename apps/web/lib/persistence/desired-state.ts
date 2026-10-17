@@ -21,7 +21,8 @@ export interface DesiredStatePayload {
 
 export type DesiredStatePersistenceErrorCode =
   | "INVALID_PROJECT"
-  | "DUPLICATE_VERSION";
+  | "DUPLICATE_VERSION"
+  | "DUPLICATE_ID";
 
 export class DesiredStatePersistenceError extends Error {
   readonly code: DesiredStatePersistenceErrorCode;
@@ -50,6 +51,13 @@ export class DuplicateVersionError extends DesiredStatePersistenceError {
   constructor(message: string, causeError?: unknown) {
     super("DUPLICATE_VERSION", message, causeError);
     this.name = "DuplicateVersionError";
+  }
+}
+
+export class DuplicateDesiredStateIdError extends DesiredStatePersistenceError {
+  constructor(message: string, causeError?: unknown) {
+    super("DUPLICATE_ID", message, causeError);
+    this.name = "DuplicateDesiredStateIdError";
   }
 }
 
@@ -101,6 +109,25 @@ function isVersionUniqueViolation(
     "DesiredState_projectId_version_key";
 }
 
+function isDesiredStateIdUniqueViolation(
+  error: Prisma.PrismaClientKnownRequestError
+): boolean {
+  const meta = error.meta as
+    | {
+        target?: unknown;
+        driverAdapterError?: {
+          cause?: { constraint?: { index?: string } };
+        };
+      }
+    | undefined;
+  const target = meta?.target;
+  if (Array.isArray(target) && target.includes("desiredStateId")) {
+    return true;
+  }
+  const index = meta?.driverAdapterError?.cause?.constraint?.index;
+  return index === "DesiredState_pkey" || index === "DesiredState_desiredStateId_key";
+}
+
 function mapPersistenceError(error: unknown): never {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2003") {
@@ -112,6 +139,12 @@ function mapPersistenceError(error: unknown): never {
     if (error.code === "P2002" && isVersionUniqueViolation(error)) {
       throw new DuplicateVersionError(
         "A Desired State with this version already exists for the project.",
+        error
+      );
+    }
+    if (error.code === "P2002" && isDesiredStateIdUniqueViolation(error)) {
+      throw new DuplicateDesiredStateIdError(
+        "A Desired State with this desiredStateId already exists.",
         error
       );
     }
