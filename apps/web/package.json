@@ -7,7 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test lib/validation/desired-state.test.ts"
+    "typecheck": "tsc --noEmit",
+    "test": "node --test lib/validation/desired-state.test.ts lib/validation/actual-state.test.ts",
+    "test:persistence": "node --env-file=.env --test lib/persistence/desired-state.test.ts",
+    "test:services": "node --env-file=.env --test lib/services/desired-state.test.ts lib/services/actual-state.test.ts",
+    "test:api": "node --env-file=.env --test \"app/api/projects/*/desired-state/route.test.ts\" \"app/api/projects/*/desired-state/e2e.test.ts\""
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

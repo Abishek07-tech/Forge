@@ -51,3 +51,8 @@ export type Project = Prisma.ProjectModel
  * 
  */
 export type DesiredState = Prisma.DesiredStateModel
+/**
+ * Model ActualStateObservation
+ * 
+ */
+export type ActualStateObservation = Prisma.ActualStateObservationModel

@@ -17,3 +17,13 @@ export const ProjectStatus = {
 } as const
 
 export type ProjectStatus = (typeof ProjectStatus)[keyof typeof ProjectStatus]
+
+
+export const ObservedStatus = {
+  running: 'running',
+  stopped: 'stopped',
+  failed: 'failed',
+  unknown: 'unknown'
+} as const
+
+export type ObservedStatus = (typeof ObservedStatus)[keyof typeof ObservedStatus]

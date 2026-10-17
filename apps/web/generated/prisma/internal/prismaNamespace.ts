@@ -398,7 +398,8 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 
 export const ModelName = {
   Project: 'Project',
-  DesiredState: 'DesiredState'
+  DesiredState: 'DesiredState',
+  ActualStateObservation: 'ActualStateObservation'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -414,7 +415,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "project" | "desiredState"
+    modelProps: "project" | "desiredState" | "actualStateObservation"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -566,6 +567,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ActualStateObservation: {
+      payload: Prisma.$ActualStateObservationPayload<ExtArgs>
+      fields: Prisma.ActualStateObservationFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ActualStateObservationFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ActualStateObservationPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ActualStateObservationFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ActualStateObservationPayload>
+        }
+        findFirst: {
+          args: Prisma.ActualStateObservationFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ActualStateObservationPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ActualStateObservationFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ActualStateObservationPayload>
+        }
+        findMany: {
+          args: Prisma.ActualStateObservationFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ActualStateObservationPayload>[]
+        }
+        create: {
+          args: Prisma.ActualStateObservationCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ActualStateObservationPayload>
+        }
+        createMany: {
+          args: Prisma.ActualStateObservationCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ActualStateObservationCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ActualStateObservationPayload>[]
+        }
+        delete: {
+          args: Prisma.ActualStateObservationDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ActualStateObservationPayload>
+        }
+        update: {
+          args: Prisma.ActualStateObservationUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ActualStateObservationPayload>
+        }
+        deleteMany: {
+          args: Prisma.ActualStateObservationDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ActualStateObservationUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ActualStateObservationUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ActualStateObservationPayload>[]
+        }
+        upsert: {
+          args: Prisma.ActualStateObservationUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ActualStateObservationPayload>
+        }
+        aggregate: {
+          args: Prisma.ActualStateObservationAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateActualStateObservation>
+        }
+        groupBy: {
+          args: Prisma.ActualStateObservationGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ActualStateObservationGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ActualStateObservationCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ActualStateObservationCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -625,6 +700,20 @@ export const DesiredStateScalarFieldEnum = {
 } as const
 
 export type DesiredStateScalarFieldEnum = (typeof DesiredStateScalarFieldEnum)[keyof typeof DesiredStateScalarFieldEnum]
+
+
+export const ActualStateObservationScalarFieldEnum = {
+  observationId: 'observationId',
+  projectId: 'projectId',
+  workloadId: 'workloadId',
+  source: 'source',
+  observedAt: 'observedAt',
+  status: 'status',
+  createdAt: 'createdAt',
+  data: 'data'
+} as const
+
+export type ActualStateObservationScalarFieldEnum = (typeof ActualStateObservationScalarFieldEnum)[keyof typeof ActualStateObservationScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -732,6 +821,20 @@ export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'J
  * Reference to a field of type 'QueryMode'
  */
 export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
+    
+
+
+/**
+ * Reference to a field of type 'ObservedStatus'
+ */
+export type EnumObservedStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ObservedStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'ObservedStatus[]'
+ */
+export type ListEnumObservedStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ObservedStatus[]'>
     
 
 
@@ -901,6 +1004,7 @@ export type PrismaClientOptions = PrismaClientOptionsWithAccelerateUrl | PrismaC
 export type GlobalOmitConfig = {
   project?: Prisma.ProjectOmit
   desiredState?: Prisma.DesiredStateOmit
+  actualStateObservation?: Prisma.ActualStateObservationOmit
 }
 
 /* Types for Logging */

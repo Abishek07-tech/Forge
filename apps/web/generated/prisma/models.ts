@@ -10,4 +10,5 @@
  */
 export type * from './models/Project.ts'
 export type * from './models/DesiredState.ts'
+export type * from './models/ActualStateObservation.ts'
 export type * from './commonInputTypes.ts'

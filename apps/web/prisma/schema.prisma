@@ -14,12 +14,20 @@ enum ProjectStatus {
   deploying
 }
 
+enum ObservedStatus {
+  running
+  stopped
+  failed
+  unknown
+}
+
 model Project {
-  id            String          @id @default(cuid())
+  id            String                  @id @default(cuid())
   name          String
   status        ProjectStatus
   deployments   Int
   desiredStates DesiredState[]
+  observations  ActualStateObservation[]
 }
 
 model DesiredState {
@@ -32,4 +40,18 @@ model DesiredState {
   data           Json
 
   @@unique([projectId, version])
+}
+
+model ActualStateObservation {
+  observationId String         @id @default(cuid())
+  projectId     String
+  project       Project        @relation(fields: [projectId], references: [id])
+  workloadId    String
+  source        String
+  observedAt    DateTime
+  status        ObservedStatus
+  createdAt     DateTime       @default(now())
+  data          Json
+
+  @@index([projectId, workloadId, observedAt])
 }

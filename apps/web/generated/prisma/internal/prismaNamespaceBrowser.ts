@@ -52,7 +52,8 @@ export const AnyNull = runtime.AnyNull
 
 export const ModelName = {
   Project: 'Project',
-  DesiredState: 'DesiredState'
+  DesiredState: 'DesiredState',
+  ActualStateObservation: 'ActualStateObservation'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -91,6 +92,20 @@ export const DesiredStateScalarFieldEnum = {
 } as const
 
 export type DesiredStateScalarFieldEnum = (typeof DesiredStateScalarFieldEnum)[keyof typeof DesiredStateScalarFieldEnum]
+
+
+export const ActualStateObservationScalarFieldEnum = {
+  observationId: 'observationId',
+  projectId: 'projectId',
+  workloadId: 'workloadId',
+  source: 'source',
+  observedAt: 'observedAt',
+  status: 'status',
+  createdAt: 'createdAt',
+  data: 'data'
+} as const
+
+export type ActualStateObservationScalarFieldEnum = (typeof ActualStateObservationScalarFieldEnum)[keyof typeof ActualStateObservationScalarFieldEnum]
 
 
 export const SortOrder = {

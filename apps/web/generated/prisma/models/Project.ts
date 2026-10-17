@@ -209,6 +209,7 @@ export type ProjectWhereInput = {
   status?: Prisma.EnumProjectStatusFilter<"Project"> | $Enums.ProjectStatus
   deployments?: Prisma.IntFilter<"Project"> | number
   desiredStates?: Prisma.DesiredStateListRelationFilter
+  observations?: Prisma.ActualStateObservationListRelationFilter
 }
 
 export type ProjectOrderByWithRelationInput = {
@@ -217,6 +218,7 @@ export type ProjectOrderByWithRelationInput = {
   status?: Prisma.SortOrder
   deployments?: Prisma.SortOrder
   desiredStates?: Prisma.DesiredStateOrderByRelationAggregateInput
+  observations?: Prisma.ActualStateObservationOrderByRelationAggregateInput
 }
 
 export type ProjectWhereUniqueInput = Prisma.AtLeast<{
@@ -228,6 +230,7 @@ export type ProjectWhereUniqueInput = Prisma.AtLeast<{
   status?: Prisma.EnumProjectStatusFilter<"Project"> | $Enums.ProjectStatus
   deployments?: Prisma.IntFilter<"Project"> | number
   desiredStates?: Prisma.DesiredStateListRelationFilter
+  observations?: Prisma.ActualStateObservationListRelationFilter
 }, "id">
 
 export type ProjectOrderByWithAggregationInput = {
@@ -258,6 +261,7 @@ export type ProjectCreateInput = {
   status: $Enums.ProjectStatus
   deployments: number
   desiredStates?: Prisma.DesiredStateCreateNestedManyWithoutProjectInput
+  observations?: Prisma.ActualStateObservationCreateNestedManyWithoutProjectInput
 }
 
 export type ProjectUncheckedCreateInput = {
@@ -266,6 +270,7 @@ export type ProjectUncheckedCreateInput = {
   status: $Enums.ProjectStatus
   deployments: number
   desiredStates?: Prisma.DesiredStateUncheckedCreateNestedManyWithoutProjectInput
+  observations?: Prisma.ActualStateObservationUncheckedCreateNestedManyWithoutProjectInput
 }
 
 export type ProjectUpdateInput = {
@@ -274,6 +279,7 @@ export type ProjectUpdateInput = {
   status?: Prisma.EnumProjectStatusFieldUpdateOperationsInput | $Enums.ProjectStatus
   deployments?: Prisma.IntFieldUpdateOperationsInput | number
   desiredStates?: Prisma.DesiredStateUpdateManyWithoutProjectNestedInput
+  observations?: Prisma.ActualStateObservationUpdateManyWithoutProjectNestedInput
 }
 
 export type ProjectUncheckedUpdateInput = {
@@ -282,6 +288,7 @@ export type ProjectUncheckedUpdateInput = {
   status?: Prisma.EnumProjectStatusFieldUpdateOperationsInput | $Enums.ProjectStatus
   deployments?: Prisma.IntFieldUpdateOperationsInput | number
   desiredStates?: Prisma.DesiredStateUncheckedUpdateManyWithoutProjectNestedInput
+  observations?: Prisma.ActualStateObservationUncheckedUpdateManyWithoutProjectNestedInput
 }
 
 export type ProjectCreateManyInput = {
@@ -369,11 +376,26 @@ export type ProjectUpdateOneRequiredWithoutDesiredStatesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.ProjectUpdateToOneWithWhereWithoutDesiredStatesInput, Prisma.ProjectUpdateWithoutDesiredStatesInput>, Prisma.ProjectUncheckedUpdateWithoutDesiredStatesInput>
 }
 
+export type ProjectCreateNestedOneWithoutObservationsInput = {
+  create?: Prisma.XOR<Prisma.ProjectCreateWithoutObservationsInput, Prisma.ProjectUncheckedCreateWithoutObservationsInput>
+  connectOrCreate?: Prisma.ProjectCreateOrConnectWithoutObservationsInput
+  connect?: Prisma.ProjectWhereUniqueInput
+}
+
+export type ProjectUpdateOneRequiredWithoutObservationsNestedInput = {
+  create?: Prisma.XOR<Prisma.ProjectCreateWithoutObservationsInput, Prisma.ProjectUncheckedCreateWithoutObservationsInput>
+  connectOrCreate?: Prisma.ProjectCreateOrConnectWithoutObservationsInput
+  upsert?: Prisma.ProjectUpsertWithoutObservationsInput
+  connect?: Prisma.ProjectWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ProjectUpdateToOneWithWhereWithoutObservationsInput, Prisma.ProjectUpdateWithoutObservationsInput>, Prisma.ProjectUncheckedUpdateWithoutObservationsInput>
+}
+
 export type ProjectCreateWithoutDesiredStatesInput = {
   id?: string
   name: string
   status: $Enums.ProjectStatus
   deployments: number
+  observations?: Prisma.ActualStateObservationCreateNestedManyWithoutProjectInput
 }
 
 export type ProjectUncheckedCreateWithoutDesiredStatesInput = {
@@ -381,6 +403,7 @@ export type ProjectUncheckedCreateWithoutDesiredStatesInput = {
   name: string
   status: $Enums.ProjectStatus
   deployments: number
+  observations?: Prisma.ActualStateObservationUncheckedCreateNestedManyWithoutProjectInput
 }
 
 export type ProjectCreateOrConnectWithoutDesiredStatesInput = {
@@ -404,6 +427,7 @@ export type ProjectUpdateWithoutDesiredStatesInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumProjectStatusFieldUpdateOperationsInput | $Enums.ProjectStatus
   deployments?: Prisma.IntFieldUpdateOperationsInput | number
+  observations?: Prisma.ActualStateObservationUpdateManyWithoutProjectNestedInput
 }
 
 export type ProjectUncheckedUpdateWithoutDesiredStatesInput = {
@@ -411,6 +435,55 @@ export type ProjectUncheckedUpdateWithoutDesiredStatesInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumProjectStatusFieldUpdateOperationsInput | $Enums.ProjectStatus
   deployments?: Prisma.IntFieldUpdateOperationsInput | number
+  observations?: Prisma.ActualStateObservationUncheckedUpdateManyWithoutProjectNestedInput
+}
+
+export type ProjectCreateWithoutObservationsInput = {
+  id?: string
+  name: string
+  status: $Enums.ProjectStatus
+  deployments: number
+  desiredStates?: Prisma.DesiredStateCreateNestedManyWithoutProjectInput
+}
+
+export type ProjectUncheckedCreateWithoutObservationsInput = {
+  id?: string
+  name: string
+  status: $Enums.ProjectStatus
+  deployments: number
+  desiredStates?: Prisma.DesiredStateUncheckedCreateNestedManyWithoutProjectInput
+}
+
+export type ProjectCreateOrConnectWithoutObservationsInput = {
+  where: Prisma.ProjectWhereUniqueInput
+  create: Prisma.XOR<Prisma.ProjectCreateWithoutObservationsInput, Prisma.ProjectUncheckedCreateWithoutObservationsInput>
+}
+
+export type ProjectUpsertWithoutObservationsInput = {
+  update: Prisma.XOR<Prisma.ProjectUpdateWithoutObservationsInput, Prisma.ProjectUncheckedUpdateWithoutObservationsInput>
+  create: Prisma.XOR<Prisma.ProjectCreateWithoutObservationsInput, Prisma.ProjectUncheckedCreateWithoutObservationsInput>
+  where?: Prisma.ProjectWhereInput
+}
+
+export type ProjectUpdateToOneWithWhereWithoutObservationsInput = {
+  where?: Prisma.ProjectWhereInput
+  data: Prisma.XOR<Prisma.ProjectUpdateWithoutObservationsInput, Prisma.ProjectUncheckedUpdateWithoutObservationsInput>
+}
+
+export type ProjectUpdateWithoutObservationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumProjectStatusFieldUpdateOperationsInput | $Enums.ProjectStatus
+  deployments?: Prisma.IntFieldUpdateOperationsInput | number
+  desiredStates?: Prisma.DesiredStateUpdateManyWithoutProjectNestedInput
+}
+
+export type ProjectUncheckedUpdateWithoutObservationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumProjectStatusFieldUpdateOperationsInput | $Enums.ProjectStatus
+  deployments?: Prisma.IntFieldUpdateOperationsInput | number
+  desiredStates?: Prisma.DesiredStateUncheckedUpdateManyWithoutProjectNestedInput
 }
 
 
@@ -420,10 +493,12 @@ export type ProjectUncheckedUpdateWithoutDesiredStatesInput = {
 
 export type ProjectCountOutputType = {
   desiredStates: number
+  observations: number
 }
 
 export type ProjectCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   desiredStates?: boolean | ProjectCountOutputTypeCountDesiredStatesArgs
+  observations?: boolean | ProjectCountOutputTypeCountObservationsArgs
 }
 
 /**
@@ -443,6 +518,13 @@ export type ProjectCountOutputTypeCountDesiredStatesArgs<ExtArgs extends runtime
   where?: Prisma.DesiredStateWhereInput
 }
 
+/**
+ * ProjectCountOutputType without action
+ */
+export type ProjectCountOutputTypeCountObservationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ActualStateObservationWhereInput
+}
+
 
 export type ProjectSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -450,6 +532,7 @@ export type ProjectSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   status?: boolean
   deployments?: boolean
   desiredStates?: boolean | Prisma.Project$desiredStatesArgs<ExtArgs>
+  observations?: boolean | Prisma.Project$observationsArgs<ExtArgs>
   _count?: boolean | Prisma.ProjectCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["project"]>
 
@@ -477,6 +560,7 @@ export type ProjectSelectScalar = {
 export type ProjectOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "status" | "deployments", ExtArgs["result"]["project"]>
 export type ProjectInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   desiredStates?: boolean | Prisma.Project$desiredStatesArgs<ExtArgs>
+  observations?: boolean | Prisma.Project$observationsArgs<ExtArgs>
   _count?: boolean | Prisma.ProjectCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type ProjectIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -486,6 +570,7 @@ export type $ProjectPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
   name: "Project"
   objects: {
     desiredStates: Prisma.$DesiredStatePayload<ExtArgs>[]
+    observations: Prisma.$ActualStateObservationPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -887,6 +972,7 @@ readonly fields: ProjectFieldRefs;
 export interface Prisma__ProjectClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   desiredStates<T extends Prisma.Project$desiredStatesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$desiredStatesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$DesiredStatePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  observations<T extends Prisma.Project$observationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$observationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ActualStateObservationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1334,6 +1420,30 @@ export type Project$desiredStatesArgs<ExtArgs extends runtime.Types.Extensions.I
   take?: number
   skip?: number
   distinct?: Prisma.DesiredStateScalarFieldEnum | Prisma.DesiredStateScalarFieldEnum[]
+}
+
+/**
+ * Project.observations
+ */
+export type Project$observationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ActualStateObservation
+   */
+  select?: Prisma.ActualStateObservationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ActualStateObservation
+   */
+  omit?: Prisma.ActualStateObservationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ActualStateObservationInclude<ExtArgs> | null
+  where?: Prisma.ActualStateObservationWhereInput
+  orderBy?: Prisma.ActualStateObservationOrderByWithRelationInput | Prisma.ActualStateObservationOrderByWithRelationInput[]
+  cursor?: Prisma.ActualStateObservationWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ActualStateObservationScalarFieldEnum | Prisma.ActualStateObservationScalarFieldEnum[]
 }
 
 /**
