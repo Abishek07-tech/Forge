@@ -28,6 +28,12 @@ export interface ObservedHealth {
   status: ObservedHealthStatus;
 }
 
+export interface RuntimeDiagnostics {
+  message?: string;
+  reason?: string;
+  details?: Record<string, string>;
+}
+
 export interface ActualStateObservation {
   observationId: string;
   projectId: string;
@@ -41,4 +47,6 @@ export interface ActualStateObservation {
   environment?: Environment;
   deployment?: ObservedDeployment;
   health: ObservedHealth;
+  diagnostics?: RuntimeDiagnostics;
+  createdAt?: Date;
 }

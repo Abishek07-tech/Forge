@@ -9,10 +9,12 @@ import {
 import { deleteDesiredStatesForProject } from "../persistence/desired-state.ts";
 import { createDesiredState } from "./desired-state.ts";
 import {
+  ActualStateConflictError,
   ActualStateServiceError,
   ActualStateValidationFailedError,
   ensureValidActualStateObservation,
   getLatestObservation,
+  ingestObservation,
   listObservations,
   recordObservation,
 } from "./actual-state.ts";
@@ -235,6 +237,7 @@ test("READ: latest observation is returned as a domain object", async () => {
   const keys = Object.keys(latest).sort();
   assert.deepEqual(keys, [
     "application",
+    "createdAt",
     "deployment",
     "environment",
     "health",
@@ -374,4 +377,163 @@ test("SEPARATION: Actual State and Desired State records coexist independently",
   });
   assert.ok(desired);
   assert.equal(desired.desiredStateId, "ds_w73_separation_v1");
+});
+
+test("INGEST: valid observation is stored and returned as a domain object", async () => {
+  assert.ok(actualProjectId);
+  const input = buildObservation({
+    observationId: "obs_w77_ingest_v1",
+    projectId: actualProjectId,
+  });
+
+  const result = await ingestObservation(input);
+
+  assert.equal(result.observationId, "obs_w77_ingest_v1");
+  assert.equal(result.projectId, actualProjectId);
+  assert.equal(result.workloadId, "default");
+  assert.equal(result.source, "test-harness");
+  assert.equal(result.status, "running");
+  assert.ok(result.observedAt instanceof Date);
+  assert.deepEqual(result.application, { image: "forge-api:v1", port: 8080 });
+  assert.deepEqual(result.runtime, { replicas: 2 });
+  assert.deepEqual(result.resources, { cpu: "250m", memory: "256Mi" });
+  assert.deepEqual(result.health, { status: "healthy" });
+});
+
+test("INGEST: duplicate observationId is rejected with CONFLICT", async () => {
+  assert.ok(actualProjectId);
+  const input = buildObservation({
+    observationId: "obs_w77_ingest_v1",
+    projectId: actualProjectId,
+  });
+
+  await assert.rejects(
+    ingestObservation(input),
+    (error: unknown) => {
+      assert.ok(error instanceof ActualStateConflictError);
+      assert.ok(error instanceof ActualStateServiceError);
+      assert.equal(
+        (error as ActualStateConflictError).code,
+        "CONFLICT"
+      );
+      assert.ok(
+        (error as ActualStateConflictError).message.includes(
+          "obs_w77_ingest_v1"
+        )
+      );
+      return true;
+    }
+  );
+
+  const count = await prisma.actualStateObservation.count({
+    where: { observationId: "obs_w77_ingest_v1" },
+  });
+  assert.equal(count, 1);
+});
+
+test("INGEST: invalid observation is rejected before persistence", async () => {
+  assert.ok(actualProjectId);
+  const before = await prisma.actualStateObservation.count({
+    where: { projectId: actualProjectId },
+  });
+
+  await assert.rejects(
+    ingestObservation(
+      buildObservation({
+        observationId: "obs_w77_invalid",
+        projectId: actualProjectId,
+        runtime: { replicas: -1 },
+      })
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof ActualStateValidationFailedError);
+      return true;
+    }
+  );
+
+  const after = await prisma.actualStateObservation.count({
+    where: { projectId: actualProjectId },
+  });
+  assert.equal(after, before);
+});
+
+test("INGEST: missing Project surfaces InvalidProjectError", async () => {
+  await assert.rejects(
+    ingestObservation(
+      buildObservation({
+        observationId: "obs_w77_orphan",
+        projectId: "prj_w77_does_not_exist",
+      })
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof InvalidProjectError);
+      assert.equal((error as InvalidProjectError).code, "INVALID_PROJECT");
+      return true;
+    }
+  );
+});
+
+test("INGEST: stale observation (older observedAt) is accepted and stored", async () => {
+  assert.ok(actualProjectId);
+  const workloadId = "stale-check";
+
+  await ingestObservation(
+    buildObservation({
+      observationId: "obs_w77_stale_newer",
+      projectId: actualProjectId,
+      workloadId,
+      observedAt: new Date("2026-10-18T14:00:00Z"),
+      application: { image: "forge-api:v2", port: 8080 },
+    })
+  );
+
+  const staleResult = await ingestObservation(
+    buildObservation({
+      observationId: "obs_w77_stale_older",
+      projectId: actualProjectId,
+      workloadId,
+      observedAt: new Date("2026-10-18T12:00:00Z"),
+      application: { image: "forge-api:v1", port: 8080 },
+    })
+  );
+  assert.equal(staleResult.observationId, "obs_w77_stale_older");
+
+  const latest = await getLatestObservation(actualProjectId, workloadId);
+  assert.ok(latest);
+  assert.equal(latest.observationId, "obs_w77_stale_newer");
+  assert.equal(latest.observedAt.getTime(), Date.parse("2026-10-18T14:00:00Z"));
+
+  const history = await listObservations(actualProjectId, workloadId);
+  assert.equal(history.length, 2);
+  assert.deepEqual(
+    history.map((o) => o.observationId),
+    ["obs_w77_stale_older", "obs_w77_stale_newer"]
+  );
+});
+
+test("INGEST: history is preserved — no observation is overwritten", async () => {
+  assert.ok(actualProjectId);
+  const workloadId = "history-check";
+
+  for (let i = 1; i <= 3; i++) {
+    await ingestObservation(
+      buildObservation({
+        observationId: `obs_w77_hist_${i}`,
+        projectId: actualProjectId,
+        workloadId,
+        observedAt: new Date(`2026-10-18T10:0${i}:00Z`),
+      })
+    );
+  }
+
+  const history = await listObservations(actualProjectId, workloadId);
+  assert.equal(history.length, 3);
+  assert.deepEqual(
+    history.map((o) => o.observationId),
+    ["obs_w77_hist_1", "obs_w77_hist_2", "obs_w77_hist_3"]
+  );
+
+  const latest = await getLatestObservation(actualProjectId, workloadId);
+  assert.ok(latest);
+  assert.equal(latest.observationId, "obs_w77_hist_3");
 });

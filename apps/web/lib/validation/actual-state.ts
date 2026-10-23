@@ -110,6 +110,42 @@ export function validateActualStateObservation(
     addRequiredEnum(errors, health, "status", OBSERVED_HEALTH_STATUSES, "health");
   }
 
+  if (observation.diagnostics !== undefined) {
+    if (!isPlainObject(observation.diagnostics)) {
+      add("diagnostics", "diagnostics must be an object");
+    } else {
+      const diagnostics = observation.diagnostics as Record<string, unknown>;
+      if (
+        diagnostics.message !== undefined &&
+        typeof diagnostics.message !== "string"
+      ) {
+        add("diagnostics.message", "message must be a string");
+      }
+      if (
+        diagnostics.reason !== undefined &&
+        typeof diagnostics.reason !== "string"
+      ) {
+        add("diagnostics.reason", "reason must be a string");
+      }
+      if (diagnostics.details !== undefined) {
+        if (!isPlainObject(diagnostics.details)) {
+          add("diagnostics.details", "details must be an object");
+        } else {
+          for (const [key, value] of Object.entries(
+            diagnostics.details as Record<string, unknown>
+          )) {
+            if (typeof value !== "string") {
+              add(
+                `diagnostics.details.${key}`,
+                `value for key "${key}" must be a string`
+              );
+            }
+          }
+        }
+      }
+    }
+  }
+
   return { valid: errors.length === 0, errors };
 }
 

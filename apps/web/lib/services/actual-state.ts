@@ -6,14 +6,17 @@ import {
 import {
   createObservation as createObservationInPersistence,
   getLatestObservation as getLatestObservationInPersistence,
+  getObservationById as getObservationByIdInPersistence,
   listObservations as listObservationsInPersistence,
   ActualStatePersistenceError,
+  DuplicateObservationError,
   InvalidProjectError,
 } from "../persistence/actual-state.ts";
 
 export type ActualStateServiceErrorCode =
   | "VALIDATION_FAILED"
   | "NOT_FOUND"
+  | "CONFLICT"
   | "PERSISTENCE_FAILED";
 
 export class ActualStateServiceError extends Error {
@@ -58,6 +61,13 @@ export class ActualStateNotFoundError extends ActualStateServiceError {
   }
 }
 
+export class ActualStateConflictError extends ActualStateServiceError {
+  constructor(message: string) {
+    super("CONFLICT", message);
+    this.name = "ActualStateConflictError";
+  }
+}
+
 export function ensureValidActualStateObservation(
   input: unknown
 ): asserts input is ActualStateObservation {
@@ -74,6 +84,38 @@ export async function recordObservation(
   try {
     return await createObservationInPersistence(input);
   } catch (error) {
+    if (error instanceof ActualStatePersistenceError) {
+      throw error;
+    }
+    throw new ActualStateServiceError(
+      "PERSISTENCE_FAILED",
+      "Failed to persist the Actual State observation.",
+      [],
+      error
+    );
+  }
+}
+
+export async function ingestObservation(
+  input: ActualStateObservation
+): Promise<ActualStateObservation> {
+  ensureValidActualStateObservation(input);
+
+  const existing = await getObservationByIdInPersistence(input.observationId);
+  if (existing) {
+    throw new ActualStateConflictError(
+      `An observation with observationId "${input.observationId}" already exists.`
+    );
+  }
+
+  try {
+    return await createObservationInPersistence(input);
+  } catch (error) {
+    if (error instanceof DuplicateObservationError) {
+      throw new ActualStateConflictError(
+        `An observation with observationId "${input.observationId}" already exists.`
+      );
+    }
     if (error instanceof ActualStatePersistenceError) {
       throw error;
     }
@@ -118,4 +160,8 @@ export async function listObservations(
   }
 }
 
-export { ActualStatePersistenceError, InvalidProjectError };
+export {
+  ActualStatePersistenceError,
+  DuplicateObservationError,
+  InvalidProjectError,
+};

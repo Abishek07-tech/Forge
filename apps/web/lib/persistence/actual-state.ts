@@ -9,6 +9,7 @@ import type {
   ObservedRuntime,
   ObservedStatus,
   Environment,
+  RuntimeDiagnostics,
 } from "../../types/actual-state.ts";
 
 export interface ActualStatePayload {
@@ -18,9 +19,12 @@ export interface ActualStatePayload {
   health: ObservedHealth;
   environment?: Environment;
   deployment?: ObservedDeployment;
+  diagnostics?: RuntimeDiagnostics;
 }
 
-export type ActualStatePersistenceErrorCode = "INVALID_PROJECT";
+export type ActualStatePersistenceErrorCode =
+  | "INVALID_PROJECT"
+  | "DUPLICATE_OBSERVATION";
 
 export class ActualStatePersistenceError extends Error {
   readonly code: ActualStatePersistenceErrorCode;
@@ -45,6 +49,13 @@ export class InvalidProjectError extends ActualStatePersistenceError {
   }
 }
 
+export class DuplicateObservationError extends ActualStatePersistenceError {
+  constructor(message: string, causeError?: unknown) {
+    super("DUPLICATE_OBSERVATION", message, causeError);
+    this.name = "DuplicateObservationError";
+  }
+}
+
 type PrismaObservation = Prisma.ActualStateObservationModel;
 
 function toPayload(input: ActualStateObservation): Prisma.InputJsonValue {
@@ -60,6 +71,9 @@ function toPayload(input: ActualStateObservation): Prisma.InputJsonValue {
   if (input.deployment !== undefined) {
     payload.deployment = input.deployment;
   }
+  if (input.diagnostics !== undefined) {
+    payload.diagnostics = input.diagnostics;
+  }
   return payload as unknown as Prisma.InputJsonValue;
 }
 
@@ -72,6 +86,7 @@ function toDomain(row: PrismaObservation): ActualStateObservation {
     observedAt: row.observedAt,
     status: row.status as ObservedStatus,
     ...(row.data as unknown as ActualStatePayload),
+    createdAt: row.createdAt,
   };
 }
 
@@ -80,6 +95,12 @@ function mapPersistenceError(error: unknown): never {
     if (error.code === "P2003") {
       throw new InvalidProjectError(
         "The referenced project does not exist.",
+        error
+      );
+    }
+    if (error.code === "P2002") {
+      throw new DuplicateObservationError(
+        "An observation with this observationId already exists.",
         error
       );
     }
@@ -106,6 +127,15 @@ export async function createObservation(
   } catch (error) {
     mapPersistenceError(error);
   }
+}
+
+export async function getObservationById(
+  observationId: string
+): Promise<ActualStateObservation | null> {
+  const row = await prisma.actualStateObservation.findUnique({
+    where: { observationId },
+  });
+  return row ? toDomain(row) : null;
 }
 
 export async function getLatestObservation(
