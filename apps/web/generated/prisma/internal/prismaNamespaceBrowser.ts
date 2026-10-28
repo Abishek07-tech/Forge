@@ -53,7 +53,8 @@ export const AnyNull = runtime.AnyNull
 export const ModelName = {
   Project: 'Project',
   DesiredState: 'DesiredState',
-  ActualStateObservation: 'ActualStateObservation'
+  ActualStateObservation: 'ActualStateObservation',
+  ExecutionJob: 'ExecutionJob'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -108,6 +109,29 @@ export const ActualStateObservationScalarFieldEnum = {
 export type ActualStateObservationScalarFieldEnum = (typeof ActualStateObservationScalarFieldEnum)[keyof typeof ActualStateObservationScalarFieldEnum]
 
 
+export const ExecutionJobScalarFieldEnum = {
+  jobId: 'jobId',
+  projectId: 'projectId',
+  workloadId: 'workloadId',
+  desiredStateId: 'desiredStateId',
+  desiredStateVersion: 'desiredStateVersion',
+  jobType: 'jobType',
+  status: 'status',
+  idempotencyKey: 'idempotencyKey',
+  attemptCount: 'attemptCount',
+  maxAttempts: 'maxAttempts',
+  correlationId: 'correlationId',
+  failure: 'failure',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  queuedAt: 'queuedAt',
+  startedAt: 'startedAt',
+  finishedAt: 'finishedAt'
+} as const
+
+export type ExecutionJobScalarFieldEnum = (typeof ExecutionJobScalarFieldEnum)[keyof typeof ExecutionJobScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -121,6 +145,14 @@ export const JsonNullValueInput = {
 } as const
 
 export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+
+
+export const NullableJsonNullValueInput = {
+  DbNull: DbNull,
+  JsonNull: JsonNull
+} as const
+
+export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
 
 
 export const QueryMode = {
@@ -138,4 +170,12 @@ export const JsonNullValueFilter = {
 } as const
 
 export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
+
+
+export const NullsOrder = {
+  first: 'first',
+  last: 'last'
+} as const
+
+export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
 

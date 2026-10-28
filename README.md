@@ -5,15 +5,19 @@ the desired state** of an application environment, and the platform manages
 the lifecycle required to build, deploy, observe, detect drift, reconcile,
 scale, update, and eventually retire that workload.
 
-The repository is under active incremental development (Day 14 of the plan
-complete as of 2026-10-21). The **declared-state half of the control loop is
+The repository is under active incremental development (Day 15 of the plan
+in progress as of 2026-10-28). The **declared-state half of the control loop is
 implemented and verified**, the **Actual State observation ingestion path is
 implemented and verified**, the **drift comparison foundation (Desired vs
-Actual) is implemented and verified**, and Day 14 added a **health-check
+Actual) is implemented and verified**, Day 14 added a **health-check
 foundation, runtime status reporting, structured observability, bounded
 failure handling, and recovery/resilience behavior — all service-level and
-test-verified**. Reconciliation, deployment, and the node agent are designed
-but not yet built.
+test-verified**, and Day 15 adds the **Control Plane foundation: an Execution
+Job domain model with a validated lifecycle, transactional/idempotent job
+persistence, Desired State evaluation that records (only records) execution
+requests, and a read/evaluate REST API — all service- and route-tested**.
+Deployment, reconciliation, the scheduler, and the node agent are designed
+but not yet built: a created job is a *request*, never an execution.
 
 ## The Problem FORGE Solves
 
@@ -33,6 +37,11 @@ Observation source reports the actual state             ← ingestion API implem
 FORGE probes health and reports runtime status          ← health check + runtime status services (Day 14)
         ↓
 FORGE compares actual vs desired (drift)                 ← comparison service implemented (Day 13)
+        ↓
+FORGE decides whether execution is needed and
+records an execution request (ExecutionJob)               ← Control Plane foundation (Day 15)
+        ↓
+FORGE executes the change on real infrastructure          ← not yet implemented (no execution mechanism)
         ↓
 FORGE reconciles the difference                          ← not yet implemented
 ```
@@ -94,16 +103,51 @@ disconnected tools.
   recovers after temporary target connectivity loss without duplicating
   reports; stale information after a restart is reported as stale; still-
   unreachable applications stay accurately unhealthy.
+- **Control Plane domain + job model (Day 15, Work 93)** — `ExecutionJob`
+  types (`apps/web/types/control-plane.ts`), runtime validation
+  (`lib/validation/execution-job.ts`), and an explicit lifecycle state
+  machine (`lib/control-plane/lifecycle.ts`):
+  `pending → queued → running → succeeded | failed | cancelled` (with
+  `failed → queued` for bounded re-queue; `succeeded`/`cancelled` are
+  terminal). Invalid transitions throw `InvalidJobTransitionError`.
+- **Execution job persistence (Day 15, Work 94)** — Prisma `ExecutionJob`
+  model + migrations with a **unique idempotency key** and a **partial
+  unique index allowing one active job per (project, workload,
+  desiredState)**, optimistic status guards (`expectedStatus`) for
+  conflicting lifecycle updates, attempt/failure recording, and filtered
+  pagination (`lib/persistence/execution-job.ts`).
+- **Desired State evaluation (Day 15, Work 95)** —
+  `evaluateResourceAndRequestExecution` compares current Desired State with
+  the latest observation and returns one of eight explicit outcomes:
+  `desired-state-unavailable`, `observation-unavailable`,
+  `observation-stale`, `evaluation-failed`, `no-action`,
+  `execution-requested`, `already-active`, `already-recorded`. A job is
+  created **only** when drift requires it; matching state creates nothing.
+- **Idempotency + concurrency safety (Day 15, Work 96)** — deterministic
+  idempotency keys (`reconcile:{projectId}:{workloadId}:{desiredStateId}`),
+  replay of a client key returns the existing job, concurrent evaluations
+  collapse to a single job through the partial unique index, retries use the
+  existing bounded `withRetry`/`classifyFailure` utilities and never retry
+  validation/permanent failures, and no database transaction is held across
+  external work.
+- **Control Plane REST API (Day 15, Work 97)** — `POST
+  /api/projects/{projectId}/control-plane/evaluate`, `GET
+  …/control-plane/jobs` (filters + pagination), and `GET
+  …/control-plane/jobs/{jobId}` (404 when the job belongs to another
+  project). **Unauthenticated, matching the project's existing API policy
+  (local development / trusted environments only).**
 - Test suites for validation, persistence, the service layers, drift
   comparison (pure + full flow), health checks, observability, resilience,
-  recovery, the Day 14 integration flow, and both APIs (including end-to-end
+  recovery, the Day 14 integration flow, the Control Plane service +
+  idempotency + end-to-end flows, and all three APIs (including end-to-end
   and process-restart survival checks).
 
-**Designed but not implemented:** Control Plane service, Scheduler, Node
-Agent, container/workload management, deployment lifecycle, scheduled/agent-
-driven health checks (the Day 14 foundation probes on demand from code),
-drift result API/persistence, reconciliation, scaling, rollback, metrics/
-tracing stacks, authentication, secrets management, CI/CD, cloud deployment.
+**Designed but not implemented:** execution mechanism (any component that
+actually runs a recorded job), Scheduler, Node Agent, container/workload
+management, deployment lifecycle, scheduled/agent-driven health checks (the
+Day 14 foundation probes on demand from code), drift result API/persistence,
+reconciliation, scaling, rollback, metrics/tracing stacks, authentication,
+secrets management, CI/CD, cloud deployment.
 
 See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) for the authoritative
 per-area status and the full engineering roadmap.
@@ -118,9 +162,13 @@ API Routes
   /api/projects/{projectId}/desired-state            (POST, GET, PUT)
   /api/projects/{projectId}/desired-state/{version}  (GET)
   /api/projects/{projectId}/actual-state/observations (POST, unauthenticated)
+  /api/projects/{projectId}/control-plane/evaluate   (POST, unauthenticated)
+  /api/projects/{projectId}/control-plane/jobs       (GET, unauthenticated)
+  /api/projects/{projectId}/control-plane/jobs/{jobId} (GET, unauthenticated)
         ↓
-Service layer        apps/web/lib/services/{desired-state,actual-state}.ts
-  (validation gate, versioning/duplicate rules, error taxonomy)
+Service layer        apps/web/lib/services/{desired-state,actual-state,control-plane}.ts
+  (validation gate, versioning/duplicate rules, error taxonomy,
+   evaluation outcomes + idempotent job creation)
         ↓
 Persistence layer    apps/web/lib/persistence/{desired-state,actual-state}.ts
   (Prisma error mapping, domain ↔ row conversion)
@@ -163,6 +211,20 @@ withRetry (apps/web/lib/resilience/retry.ts)
    → bounded attempts + exponential backoff + optional deadline
 ```
 
+The Control Plane path (Day 15) connects evaluation to a recorded request:
+
+```
+evaluateResourceAndRequestExecution (apps/web/lib/services/control-plane.ts)
+   → current Desired State + latest observation (reuses drift comparison)
+   → one of eight explicit outcomes (see "Control Plane" below)
+   → creates an ExecutionJob ONLY when drift requires execution
+   → getExecutionJob / listJobs / advanceExecutionJob (service reads + lifecycle)
+```
+
+Creating a job records intent. **No execution mechanism exists**, so a job —
+queued, running, or otherwise — is never evidence that infrastructure
+changed.
+
 All of these layers share the structured logger
 (`apps/web/lib/observability/logger.ts`), which redacts secret-looking keys
 and never throws.
@@ -202,14 +264,22 @@ control-panel/                      ← repository root
 │       │           ├── route.ts            POST (ingestion)
 │       │           ├── route.test.ts       route tests
 │       │           └── e2e.test.ts         end-to-end suite
+│       │       └── projects/[projectId]/control-plane/
+│       │           ├── evaluate/route.ts       POST evaluate (Work 97)
+│       │           ├── evaluate/route.test.ts  evaluate route tests
+│       │           ├── jobs/route.ts           GET list (Work 97)
+│       │           ├── jobs/route.test.ts      list route tests
+│       │           ├── jobs/[jobId]/route.ts   GET by id (Work 97)
+│       │           └── e2e.test.ts             API end-to-end suite (Work 98)
 │       ├── components/             CreateProject, ProjectCard, ProjectDashboard
-│       ├── types/                  Project + Desired State + Actual State + Drift + health-check + runtime-status types
+│       ├── types/                  Project + Desired State + Actual State + Drift + health-check + runtime-status + control-plane types
 │       ├── lib/
 │       │   ├── prisma.ts           reusable Prisma client singleton
-│       │   ├── validation/         Desired State + Actual State + ingestion + runtime-status validators + tests
-│       │   ├── persistence/        Desired State + Actual State persistence + tests
-│       │   ├── services/           Desired State + Actual State + drift + runtime-status service layers + tests
-│       │   │                        (incl. recovery + Day 14 integration suites)
+│       │   ├── validation/         Desired State + Actual State + ingestion + runtime-status + execution-job validators + tests
+│       │   ├── persistence/        Desired State + Actual State + execution-job persistence + tests
+│       │   ├── services/           Desired State + Actual State + drift + runtime-status + control-plane service layers + tests
+│       │   │                        (incl. recovery + Day 14 integration + Day 15 control-plane integration suites)
+│       │   ├── control-plane/      execution-job lifecycle state machine + tests (Work 93)
 │       │   ├── drift/              pure Desired-vs-Actual comparison + tests
 │       │   ├── health-check/       probe + evaluation + tests (Work 87)
 │       │   ├── observability/      structured logger with redaction + tests (Work 89)
@@ -260,7 +330,7 @@ cd apps/web
 # one-time: create the database
 psql -U postgres -c 'CREATE DATABASE forge;'
 
-# apply migrations (Project + DesiredState + ActualStateObservation tables)
+# apply migrations (Project + DesiredState + ActualStateObservation + ExecutionJob tables)
 npx prisma migrate deploy
 
 # confirm
@@ -291,11 +361,12 @@ Suites that touch the database require `apps/web/.env` with `DATABASE_URL`.
 ```bash
 cd apps/web
 
-npm test                        # validation + drift pure + health check + observability + resilience (114 tests, no DB)
-npm run test:persistence        # persistence layer (9 integration tests)
-npm run test:services           # service layers incl. drift, runtime status, recovery, Day 14 flow (105 tests)
+npm test                        # validation + lifecycle + drift pure + health check + observability + resilience (133 tests, no DB)
+npm run test:persistence        # persistence layer incl. execution jobs (18 tests)
+npm run test:services           # service layers incl. drift, runtime status, recovery, Day 14 flow, control plane + idempotency + Day 15 e2e (141 tests)
 npm run test:api                # Desired State API routes + e2e (28 tests)
 npm run test:api:actual         # Actual State ingestion routes + e2e (29 tests)
+npm run test:api:control-plane  # Control Plane evaluate/jobs routes + API e2e (20 tests)
 ```
 
 ## API
@@ -454,6 +525,57 @@ Successful response (201) splits metadata from the observed payload:
 be exposed publicly as a production ingestion interface without an
 authorization design.
 
+### Control Plane (Day 15)
+
+Three endpoints, all **unauthenticated** under the same local-development
+policy as ingestion:
+
+```bash
+PID=<project id>
+
+# evaluate Desired vs Actual State; records an execution request only if needed
+curl -X POST "http://localhost:3000/api/projects/$PID/control-plane/evaluate" \
+  -H 'Content-Type: application/json' \
+  -d '{"workloadId":"default","idempotencyKey":"optional-client-key"}'
+
+# list execution jobs (filters: workloadId, status, jobType, limit, offset)
+curl "http://localhost:3000/api/projects/$PID/control-plane/jobs?status=pending&limit=10"
+
+# fetch one job (404 if it belongs to another project)
+curl "http://localhost:3000/api/projects/$PID/control-plane/jobs/<jobId>"
+```
+
+`POST …/evaluate` always answers **200 with an explicit outcome** (or 400/404
+for invalid/missing input):
+
+| Outcome | Meaning | Job created? |
+|---|---|---|
+| `no-action` | Desired and observed state match | no |
+| `execution-requested` | drift detected; a `pending` job was recorded | yes |
+| `already-active` | an active job for this intent already exists | no (reused) |
+| `already-recorded` | the client `idempotencyKey` replays a known job | no (reused) |
+| `observation-unavailable` | no observation for the workload | no |
+| `observation-stale` | newest observation older than the stale window | no |
+| `desired-state-unavailable` | no declaration to evaluate | no |
+| `evaluation-failed` | invalid/inconsistent data prevented evaluation | no |
+
+**Execution job lifecycle:** `pending → queued → running → succeeded |
+failed | cancelled`, plus `failed → queued` for bounded re-queue;
+`succeeded` and `cancelled` are terminal. Transitions are validated in
+`lib/control-plane/lifecycle.ts` and again behind an optimistic
+`expectedStatus` guard in persistence, so conflicting updates surface as
+**409**, never as silent overwrites.
+
+**Idempotency:** service-generated keys are
+`reconcile:{projectId}:{workloadId}:{desiredStateId}`; a partial unique index
+allows **one active job per (project, workload, desired state)**, and a
+second unique index makes repeated creates with the same key return the
+existing row. Concurrent evaluations therefore collapse to one job.
+
+**Boundary:** a `201`-style success here does not exist — jobs are recorded
+requests. Nothing is deployed, repaired, or reconciled by these endpoints,
+and no endpoint claims otherwise.
+
 ### Drift Comparison (service layer — no HTTP endpoint)
 
 There is **no public drift API**. Comparison is available in-process through
@@ -549,12 +671,19 @@ last error, attempt count, and disposition.
 - **No automatic recovery or restart** — bounded retries exist for transient
   failures, but FORGE never automatically restarts, redeploys, or reconciles
   a workload; unhealthy states are reported, not acted upon.
-- **No Control Plane / Scheduler / Node Agent** — stored Desired State is
-  not yet consumed by any deployer; there is no Docker/container integration
-  and no real node reports observations.
-- **Ingestion endpoint is unauthenticated** — the Actual State ingestion API
-  is open on localhost with no token/session verification; suitable only for
-  local development and trusted environments.
+- **Jobs are recorded, never executed** — the Control Plane evaluates
+  Desired vs Actual State and persists an `ExecutionJob`, but **no execution
+  mechanism, scheduler, or worker exists**: nothing dequeues a `queued` job,
+  runs a deployment, or moves it to `succeeded`. Job status changes happen
+  only through the explicit lifecycle API, and `succeeded` never occurs
+  automatically.
+- **No drift endpoint or persisted drift history** — comparison still runs
+  in-process (`compareProjectState`); evaluation consumes it but the result
+  is returned in the evaluate response only, not stored as drift history.
+- **Ingestion and Control Plane endpoints are unauthenticated** — the
+  Actual State ingestion API and all three Control Plane routes are open on
+  localhost with no token/session verification; suitable only for local
+  development and trusted environments.
 - **No authentication or authorization** — the API is open on localhost.
 - **No retirement endpoint** — the API contract defines no delete/retire
   route and the persistence design defines no retention policy; retirement
@@ -562,11 +691,12 @@ last error, attempt count, and disposition.
   (`retireDesiredState`).
 - **Web Console is a foundation only** — it manages projects; it does not yet
   surface Desired State, Actual State, health, or runtime status.
-- **`npm run build` prerender caveat** — the dashboard page fetches the API
-  at build time, so a production build needs the dev server/database
-  reachable, or that page made dynamic (pre-existing, confirmed against a
-  pristine HEAD baseline build; unrelated to Days 12–14; `npm run dev` is
-  unaffected).
+- **`npm run build` prerender caveat — resolved (Day 15)** — the dashboard
+  page previously fetched the API during build-time prerendering and failed
+  with `ECONNREFUSED` when no server was listening. The page now calls
+  `connection()` (Next 16) so it renders at request time with
+  `cache: "no-store"`; `npm run build` completes with exit 0 without a
+  running server.
 - The Project API route still accesses Prisma directly (legacy path from
   before the service layer existed).
 
@@ -603,19 +733,23 @@ toward a working end-to-end control loop:
 3. **Health, runtime visibility, resilience** — health-check foundation,
    runtime status reporting, structured logging, bounded retries,
    restart/outage recovery (Day 14) ✓ implemented (service-level)
-4. **Drift exposure** — documented read-only drift endpoint / console view
+4. **Control Plane foundation** — execution job domain, persistence +
+   idempotency, Desired State evaluation, evaluate/jobs REST API
+   (Day 15, Works 93–98) ✓ implemented (requests recorded, not executed)
+5. **Drift exposure** — documented read-only drift endpoint / console view
    (next)
-5. **Control Plane + Scheduler + Node Agent** — consume Desired State and
-   execute deployments on real nodes; scheduled health probes and real
-   runtime reports from agents
-6. **Reconciliation loop** — converge actual state toward desired state
-7. **Metrics/tracing, auth, CI/CD, cloud deployment, portfolio demo**
+6. **Execution mechanism + Scheduler + Node Agent** — dequeue and execute
+   recorded jobs on real nodes; scheduled health probes and real runtime
+   reports from agents
+7. **Reconciliation loop** — converge actual state toward desired state
+8. **Metrics/tracing, auth, CI/CD, cloud deployment, portfolio demo**
 
-Completion of Days 11–14 means FORGE can now reliably answer *"what should
+Completion of Days 11–15 means FORGE can now reliably answer *"what should
 exist?"* (Desired State), *"what was reported to exist?"* (Actual State),
-*"are they the same, and if not what differs?"* (drift), and *"is the
+*"are they the same, and if not what differs?"* (drift), *"is the
 runtime healthy right now, and can failures be retried and recovered from
-safely?"* (health/runtime status/resilience). The remaining work makes it
-answer *"fix it."*
+safely?"* (health/runtime status/resilience), and *"does anything need to
+happen, and has that been recorded as a request?"* (Control Plane). The
+remaining work makes it answer *"fix it."*
 
 The fixed project completion deadline is **December 10, 2026**.

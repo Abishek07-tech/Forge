@@ -32,3 +32,8 @@ export type DesiredState = Prisma.DesiredStateModel
  * 
  */
 export type ActualStateObservation = Prisma.ActualStateObservationModel
+/**
+ * Model ExecutionJob
+ * 
+ */
+export type ExecutionJob = Prisma.ExecutionJobModel

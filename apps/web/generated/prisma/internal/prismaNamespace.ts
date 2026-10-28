@@ -399,7 +399,8 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 export const ModelName = {
   Project: 'Project',
   DesiredState: 'DesiredState',
-  ActualStateObservation: 'ActualStateObservation'
+  ActualStateObservation: 'ActualStateObservation',
+  ExecutionJob: 'ExecutionJob'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -415,7 +416,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "project" | "desiredState" | "actualStateObservation"
+    modelProps: "project" | "desiredState" | "actualStateObservation" | "executionJob"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -641,6 +642,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ExecutionJob: {
+      payload: Prisma.$ExecutionJobPayload<ExtArgs>
+      fields: Prisma.ExecutionJobFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ExecutionJobFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionJobPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ExecutionJobFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionJobPayload>
+        }
+        findFirst: {
+          args: Prisma.ExecutionJobFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionJobPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ExecutionJobFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionJobPayload>
+        }
+        findMany: {
+          args: Prisma.ExecutionJobFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionJobPayload>[]
+        }
+        create: {
+          args: Prisma.ExecutionJobCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionJobPayload>
+        }
+        createMany: {
+          args: Prisma.ExecutionJobCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ExecutionJobCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionJobPayload>[]
+        }
+        delete: {
+          args: Prisma.ExecutionJobDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionJobPayload>
+        }
+        update: {
+          args: Prisma.ExecutionJobUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionJobPayload>
+        }
+        deleteMany: {
+          args: Prisma.ExecutionJobDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ExecutionJobUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ExecutionJobUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionJobPayload>[]
+        }
+        upsert: {
+          args: Prisma.ExecutionJobUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionJobPayload>
+        }
+        aggregate: {
+          args: Prisma.ExecutionJobAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateExecutionJob>
+        }
+        groupBy: {
+          args: Prisma.ExecutionJobGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ExecutionJobGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ExecutionJobCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ExecutionJobCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -716,6 +791,29 @@ export const ActualStateObservationScalarFieldEnum = {
 export type ActualStateObservationScalarFieldEnum = (typeof ActualStateObservationScalarFieldEnum)[keyof typeof ActualStateObservationScalarFieldEnum]
 
 
+export const ExecutionJobScalarFieldEnum = {
+  jobId: 'jobId',
+  projectId: 'projectId',
+  workloadId: 'workloadId',
+  desiredStateId: 'desiredStateId',
+  desiredStateVersion: 'desiredStateVersion',
+  jobType: 'jobType',
+  status: 'status',
+  idempotencyKey: 'idempotencyKey',
+  attemptCount: 'attemptCount',
+  maxAttempts: 'maxAttempts',
+  correlationId: 'correlationId',
+  failure: 'failure',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  queuedAt: 'queuedAt',
+  startedAt: 'startedAt',
+  finishedAt: 'finishedAt'
+} as const
+
+export type ExecutionJobScalarFieldEnum = (typeof ExecutionJobScalarFieldEnum)[keyof typeof ExecutionJobScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -729,6 +827,14 @@ export const JsonNullValueInput = {
 } as const
 
 export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+
+
+export const NullableJsonNullValueInput = {
+  DbNull: DbNull,
+  JsonNull: JsonNull
+} as const
+
+export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
 
 
 export const QueryMode = {
@@ -746,6 +852,14 @@ export const JsonNullValueFilter = {
 } as const
 
 export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
+
+
+export const NullsOrder = {
+  first: 'first',
+  last: 'last'
+} as const
+
+export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
 
 
 
@@ -835,6 +949,34 @@ export type EnumObservedStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$P
  * Reference to a field of type 'ObservedStatus[]'
  */
 export type ListEnumObservedStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ObservedStatus[]'>
+    
+
+
+/**
+ * Reference to a field of type 'ExecutionJobType'
+ */
+export type EnumExecutionJobTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ExecutionJobType'>
+    
+
+
+/**
+ * Reference to a field of type 'ExecutionJobType[]'
+ */
+export type ListEnumExecutionJobTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ExecutionJobType[]'>
+    
+
+
+/**
+ * Reference to a field of type 'ExecutionJobStatus'
+ */
+export type EnumExecutionJobStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ExecutionJobStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'ExecutionJobStatus[]'
+ */
+export type ListEnumExecutionJobStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ExecutionJobStatus[]'>
     
 
 
@@ -1005,6 +1147,7 @@ export type GlobalOmitConfig = {
   project?: Prisma.ProjectOmit
   desiredState?: Prisma.DesiredStateOmit
   actualStateObservation?: Prisma.ActualStateObservationOmit
+  executionJob?: Prisma.ExecutionJobOmit
 }
 
 /* Types for Logging */

@@ -210,6 +210,7 @@ export type ProjectWhereInput = {
   deployments?: Prisma.IntFilter<"Project"> | number
   desiredStates?: Prisma.DesiredStateListRelationFilter
   observations?: Prisma.ActualStateObservationListRelationFilter
+  executionJobs?: Prisma.ExecutionJobListRelationFilter
 }
 
 export type ProjectOrderByWithRelationInput = {
@@ -219,6 +220,7 @@ export type ProjectOrderByWithRelationInput = {
   deployments?: Prisma.SortOrder
   desiredStates?: Prisma.DesiredStateOrderByRelationAggregateInput
   observations?: Prisma.ActualStateObservationOrderByRelationAggregateInput
+  executionJobs?: Prisma.ExecutionJobOrderByRelationAggregateInput
 }
 
 export type ProjectWhereUniqueInput = Prisma.AtLeast<{
@@ -231,6 +233,7 @@ export type ProjectWhereUniqueInput = Prisma.AtLeast<{
   deployments?: Prisma.IntFilter<"Project"> | number
   desiredStates?: Prisma.DesiredStateListRelationFilter
   observations?: Prisma.ActualStateObservationListRelationFilter
+  executionJobs?: Prisma.ExecutionJobListRelationFilter
 }, "id">
 
 export type ProjectOrderByWithAggregationInput = {
@@ -262,6 +265,7 @@ export type ProjectCreateInput = {
   deployments: number
   desiredStates?: Prisma.DesiredStateCreateNestedManyWithoutProjectInput
   observations?: Prisma.ActualStateObservationCreateNestedManyWithoutProjectInput
+  executionJobs?: Prisma.ExecutionJobCreateNestedManyWithoutProjectInput
 }
 
 export type ProjectUncheckedCreateInput = {
@@ -271,6 +275,7 @@ export type ProjectUncheckedCreateInput = {
   deployments: number
   desiredStates?: Prisma.DesiredStateUncheckedCreateNestedManyWithoutProjectInput
   observations?: Prisma.ActualStateObservationUncheckedCreateNestedManyWithoutProjectInput
+  executionJobs?: Prisma.ExecutionJobUncheckedCreateNestedManyWithoutProjectInput
 }
 
 export type ProjectUpdateInput = {
@@ -280,6 +285,7 @@ export type ProjectUpdateInput = {
   deployments?: Prisma.IntFieldUpdateOperationsInput | number
   desiredStates?: Prisma.DesiredStateUpdateManyWithoutProjectNestedInput
   observations?: Prisma.ActualStateObservationUpdateManyWithoutProjectNestedInput
+  executionJobs?: Prisma.ExecutionJobUpdateManyWithoutProjectNestedInput
 }
 
 export type ProjectUncheckedUpdateInput = {
@@ -289,6 +295,7 @@ export type ProjectUncheckedUpdateInput = {
   deployments?: Prisma.IntFieldUpdateOperationsInput | number
   desiredStates?: Prisma.DesiredStateUncheckedUpdateManyWithoutProjectNestedInput
   observations?: Prisma.ActualStateObservationUncheckedUpdateManyWithoutProjectNestedInput
+  executionJobs?: Prisma.ExecutionJobUncheckedUpdateManyWithoutProjectNestedInput
 }
 
 export type ProjectCreateManyInput = {
@@ -390,12 +397,27 @@ export type ProjectUpdateOneRequiredWithoutObservationsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.ProjectUpdateToOneWithWhereWithoutObservationsInput, Prisma.ProjectUpdateWithoutObservationsInput>, Prisma.ProjectUncheckedUpdateWithoutObservationsInput>
 }
 
+export type ProjectCreateNestedOneWithoutExecutionJobsInput = {
+  create?: Prisma.XOR<Prisma.ProjectCreateWithoutExecutionJobsInput, Prisma.ProjectUncheckedCreateWithoutExecutionJobsInput>
+  connectOrCreate?: Prisma.ProjectCreateOrConnectWithoutExecutionJobsInput
+  connect?: Prisma.ProjectWhereUniqueInput
+}
+
+export type ProjectUpdateOneRequiredWithoutExecutionJobsNestedInput = {
+  create?: Prisma.XOR<Prisma.ProjectCreateWithoutExecutionJobsInput, Prisma.ProjectUncheckedCreateWithoutExecutionJobsInput>
+  connectOrCreate?: Prisma.ProjectCreateOrConnectWithoutExecutionJobsInput
+  upsert?: Prisma.ProjectUpsertWithoutExecutionJobsInput
+  connect?: Prisma.ProjectWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ProjectUpdateToOneWithWhereWithoutExecutionJobsInput, Prisma.ProjectUpdateWithoutExecutionJobsInput>, Prisma.ProjectUncheckedUpdateWithoutExecutionJobsInput>
+}
+
 export type ProjectCreateWithoutDesiredStatesInput = {
   id?: string
   name: string
   status: $Enums.ProjectStatus
   deployments: number
   observations?: Prisma.ActualStateObservationCreateNestedManyWithoutProjectInput
+  executionJobs?: Prisma.ExecutionJobCreateNestedManyWithoutProjectInput
 }
 
 export type ProjectUncheckedCreateWithoutDesiredStatesInput = {
@@ -404,6 +426,7 @@ export type ProjectUncheckedCreateWithoutDesiredStatesInput = {
   status: $Enums.ProjectStatus
   deployments: number
   observations?: Prisma.ActualStateObservationUncheckedCreateNestedManyWithoutProjectInput
+  executionJobs?: Prisma.ExecutionJobUncheckedCreateNestedManyWithoutProjectInput
 }
 
 export type ProjectCreateOrConnectWithoutDesiredStatesInput = {
@@ -428,6 +451,7 @@ export type ProjectUpdateWithoutDesiredStatesInput = {
   status?: Prisma.EnumProjectStatusFieldUpdateOperationsInput | $Enums.ProjectStatus
   deployments?: Prisma.IntFieldUpdateOperationsInput | number
   observations?: Prisma.ActualStateObservationUpdateManyWithoutProjectNestedInput
+  executionJobs?: Prisma.ExecutionJobUpdateManyWithoutProjectNestedInput
 }
 
 export type ProjectUncheckedUpdateWithoutDesiredStatesInput = {
@@ -436,6 +460,7 @@ export type ProjectUncheckedUpdateWithoutDesiredStatesInput = {
   status?: Prisma.EnumProjectStatusFieldUpdateOperationsInput | $Enums.ProjectStatus
   deployments?: Prisma.IntFieldUpdateOperationsInput | number
   observations?: Prisma.ActualStateObservationUncheckedUpdateManyWithoutProjectNestedInput
+  executionJobs?: Prisma.ExecutionJobUncheckedUpdateManyWithoutProjectNestedInput
 }
 
 export type ProjectCreateWithoutObservationsInput = {
@@ -444,6 +469,7 @@ export type ProjectCreateWithoutObservationsInput = {
   status: $Enums.ProjectStatus
   deployments: number
   desiredStates?: Prisma.DesiredStateCreateNestedManyWithoutProjectInput
+  executionJobs?: Prisma.ExecutionJobCreateNestedManyWithoutProjectInput
 }
 
 export type ProjectUncheckedCreateWithoutObservationsInput = {
@@ -452,6 +478,7 @@ export type ProjectUncheckedCreateWithoutObservationsInput = {
   status: $Enums.ProjectStatus
   deployments: number
   desiredStates?: Prisma.DesiredStateUncheckedCreateNestedManyWithoutProjectInput
+  executionJobs?: Prisma.ExecutionJobUncheckedCreateNestedManyWithoutProjectInput
 }
 
 export type ProjectCreateOrConnectWithoutObservationsInput = {
@@ -476,6 +503,7 @@ export type ProjectUpdateWithoutObservationsInput = {
   status?: Prisma.EnumProjectStatusFieldUpdateOperationsInput | $Enums.ProjectStatus
   deployments?: Prisma.IntFieldUpdateOperationsInput | number
   desiredStates?: Prisma.DesiredStateUpdateManyWithoutProjectNestedInput
+  executionJobs?: Prisma.ExecutionJobUpdateManyWithoutProjectNestedInput
 }
 
 export type ProjectUncheckedUpdateWithoutObservationsInput = {
@@ -484,6 +512,59 @@ export type ProjectUncheckedUpdateWithoutObservationsInput = {
   status?: Prisma.EnumProjectStatusFieldUpdateOperationsInput | $Enums.ProjectStatus
   deployments?: Prisma.IntFieldUpdateOperationsInput | number
   desiredStates?: Prisma.DesiredStateUncheckedUpdateManyWithoutProjectNestedInput
+  executionJobs?: Prisma.ExecutionJobUncheckedUpdateManyWithoutProjectNestedInput
+}
+
+export type ProjectCreateWithoutExecutionJobsInput = {
+  id?: string
+  name: string
+  status: $Enums.ProjectStatus
+  deployments: number
+  desiredStates?: Prisma.DesiredStateCreateNestedManyWithoutProjectInput
+  observations?: Prisma.ActualStateObservationCreateNestedManyWithoutProjectInput
+}
+
+export type ProjectUncheckedCreateWithoutExecutionJobsInput = {
+  id?: string
+  name: string
+  status: $Enums.ProjectStatus
+  deployments: number
+  desiredStates?: Prisma.DesiredStateUncheckedCreateNestedManyWithoutProjectInput
+  observations?: Prisma.ActualStateObservationUncheckedCreateNestedManyWithoutProjectInput
+}
+
+export type ProjectCreateOrConnectWithoutExecutionJobsInput = {
+  where: Prisma.ProjectWhereUniqueInput
+  create: Prisma.XOR<Prisma.ProjectCreateWithoutExecutionJobsInput, Prisma.ProjectUncheckedCreateWithoutExecutionJobsInput>
+}
+
+export type ProjectUpsertWithoutExecutionJobsInput = {
+  update: Prisma.XOR<Prisma.ProjectUpdateWithoutExecutionJobsInput, Prisma.ProjectUncheckedUpdateWithoutExecutionJobsInput>
+  create: Prisma.XOR<Prisma.ProjectCreateWithoutExecutionJobsInput, Prisma.ProjectUncheckedCreateWithoutExecutionJobsInput>
+  where?: Prisma.ProjectWhereInput
+}
+
+export type ProjectUpdateToOneWithWhereWithoutExecutionJobsInput = {
+  where?: Prisma.ProjectWhereInput
+  data: Prisma.XOR<Prisma.ProjectUpdateWithoutExecutionJobsInput, Prisma.ProjectUncheckedUpdateWithoutExecutionJobsInput>
+}
+
+export type ProjectUpdateWithoutExecutionJobsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumProjectStatusFieldUpdateOperationsInput | $Enums.ProjectStatus
+  deployments?: Prisma.IntFieldUpdateOperationsInput | number
+  desiredStates?: Prisma.DesiredStateUpdateManyWithoutProjectNestedInput
+  observations?: Prisma.ActualStateObservationUpdateManyWithoutProjectNestedInput
+}
+
+export type ProjectUncheckedUpdateWithoutExecutionJobsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumProjectStatusFieldUpdateOperationsInput | $Enums.ProjectStatus
+  deployments?: Prisma.IntFieldUpdateOperationsInput | number
+  desiredStates?: Prisma.DesiredStateUncheckedUpdateManyWithoutProjectNestedInput
+  observations?: Prisma.ActualStateObservationUncheckedUpdateManyWithoutProjectNestedInput
 }
 
 
@@ -494,11 +575,13 @@ export type ProjectUncheckedUpdateWithoutObservationsInput = {
 export type ProjectCountOutputType = {
   desiredStates: number
   observations: number
+  executionJobs: number
 }
 
 export type ProjectCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   desiredStates?: boolean | ProjectCountOutputTypeCountDesiredStatesArgs
   observations?: boolean | ProjectCountOutputTypeCountObservationsArgs
+  executionJobs?: boolean | ProjectCountOutputTypeCountExecutionJobsArgs
 }
 
 /**
@@ -525,6 +608,13 @@ export type ProjectCountOutputTypeCountObservationsArgs<ExtArgs extends runtime.
   where?: Prisma.ActualStateObservationWhereInput
 }
 
+/**
+ * ProjectCountOutputType without action
+ */
+export type ProjectCountOutputTypeCountExecutionJobsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ExecutionJobWhereInput
+}
+
 
 export type ProjectSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -533,6 +623,7 @@ export type ProjectSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   deployments?: boolean
   desiredStates?: boolean | Prisma.Project$desiredStatesArgs<ExtArgs>
   observations?: boolean | Prisma.Project$observationsArgs<ExtArgs>
+  executionJobs?: boolean | Prisma.Project$executionJobsArgs<ExtArgs>
   _count?: boolean | Prisma.ProjectCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["project"]>
 
@@ -561,6 +652,7 @@ export type ProjectOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
 export type ProjectInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   desiredStates?: boolean | Prisma.Project$desiredStatesArgs<ExtArgs>
   observations?: boolean | Prisma.Project$observationsArgs<ExtArgs>
+  executionJobs?: boolean | Prisma.Project$executionJobsArgs<ExtArgs>
   _count?: boolean | Prisma.ProjectCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type ProjectIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -571,6 +663,7 @@ export type $ProjectPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
   objects: {
     desiredStates: Prisma.$DesiredStatePayload<ExtArgs>[]
     observations: Prisma.$ActualStateObservationPayload<ExtArgs>[]
+    executionJobs: Prisma.$ExecutionJobPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -973,6 +1066,7 @@ export interface Prisma__ProjectClient<T, Null = never, ExtArgs extends runtime.
   readonly [Symbol.toStringTag]: "PrismaPromise"
   desiredStates<T extends Prisma.Project$desiredStatesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$desiredStatesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$DesiredStatePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   observations<T extends Prisma.Project$observationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$observationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ActualStateObservationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  executionJobs<T extends Prisma.Project$executionJobsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$executionJobsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ExecutionJobPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1444,6 +1538,30 @@ export type Project$observationsArgs<ExtArgs extends runtime.Types.Extensions.In
   take?: number
   skip?: number
   distinct?: Prisma.ActualStateObservationScalarFieldEnum | Prisma.ActualStateObservationScalarFieldEnum[]
+}
+
+/**
+ * Project.executionJobs
+ */
+export type Project$executionJobsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ExecutionJob
+   */
+  select?: Prisma.ExecutionJobSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ExecutionJob
+   */
+  omit?: Prisma.ExecutionJobOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ExecutionJobInclude<ExtArgs> | null
+  where?: Prisma.ExecutionJobWhereInput
+  orderBy?: Prisma.ExecutionJobOrderByWithRelationInput | Prisma.ExecutionJobOrderByWithRelationInput[]
+  cursor?: Prisma.ExecutionJobWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ExecutionJobScalarFieldEnum | Prisma.ExecutionJobScalarFieldEnum[]
 }
 
 /**

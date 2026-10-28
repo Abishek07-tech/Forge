@@ -21,6 +21,23 @@ enum ObservedStatus {
   unknown
 }
 
+enum ExecutionJobStatus {
+  pending
+  queued
+  running
+  succeeded
+  failed
+  cancelled
+}
+
+enum ExecutionJobType {
+  reconcile
+  deploy
+  scale
+  update
+  retire
+}
+
 model Project {
   id            String                  @id @default(cuid())
   name          String
@@ -28,6 +45,7 @@ model Project {
   deployments   Int
   desiredStates DesiredState[]
   observations  ActualStateObservation[]
+  executionJobs ExecutionJob[]
 }
 
 model DesiredState {
@@ -54,4 +72,30 @@ model ActualStateObservation {
   data          Json
 
   @@index([projectId, workloadId, observedAt])
+}
+
+model ExecutionJob {
+  jobId               String              @id @default(cuid())
+  projectId           String
+  project             Project             @relation(fields: [projectId], references: [id])
+  workloadId          String
+  desiredStateId      String
+  desiredStateVersion Int
+  jobType             ExecutionJobType
+  status              ExecutionJobStatus
+  idempotencyKey      String
+  attemptCount        Int                 @default(0)
+  maxAttempts         Int                 @default(3)
+  correlationId       String?
+  failure             Json?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  queuedAt            DateTime?
+  startedAt           DateTime?
+  finishedAt          DateTime?
+
+  @@unique([idempotencyKey])
+  @@index([projectId, status])
+  @@index([projectId, workloadId, updatedAt])
+  @@index([projectId, workloadId, desiredStateId, status])
 }

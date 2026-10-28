@@ -14,6 +14,7 @@ const INVALID_NAMES = new Set([
   "HealthCheckValidationError",
   "DesiredStateValidationFailedError",
   "DriftServiceError",
+  "InvalidJobTransitionServiceError",
 ]);
 
 const PERMANENT_NAMES = new Set([
@@ -21,6 +22,11 @@ const PERMANENT_NAMES = new Set([
   "DuplicateObservationError",
   "InvalidProjectError",
   "DriftComparisonError",
+  "ControlPlaneNotFoundError",
+  "ControlPlaneConflictError",
+  "DuplicateActiveJobError",
+  "DuplicateIdempotencyKeyError",
+  "StaleStatusUpdateError",
 ]);
 
 const RETRYABLE_CODES = new Set([

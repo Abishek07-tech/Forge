@@ -27,3 +27,26 @@ export const ObservedStatus = {
 } as const
 
 export type ObservedStatus = (typeof ObservedStatus)[keyof typeof ObservedStatus]
+
+
+export const ExecutionJobStatus = {
+  pending: 'pending',
+  queued: 'queued',
+  running: 'running',
+  succeeded: 'succeeded',
+  failed: 'failed',
+  cancelled: 'cancelled'
+} as const
+
+export type ExecutionJobStatus = (typeof ExecutionJobStatus)[keyof typeof ExecutionJobStatus]
+
+
+export const ExecutionJobType = {
+  reconcile: 'reconcile',
+  deploy: 'deploy',
+  scale: 'scale',
+  update: 'update',
+  retire: 'retire'
+} as const
+
+export type ExecutionJobType = (typeof ExecutionJobType)[keyof typeof ExecutionJobType]

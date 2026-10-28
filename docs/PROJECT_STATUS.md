@@ -2,8 +2,10 @@
 
 > Single source of truth for the FORGE control-platform project.
 > Keep this document updated whenever a major engineering area changes.
-> Last updated: 2026-10-21 (Day 14 complete — health checks, runtime status,
-> observability, failure handling, and recovery live)
+> Last updated: 2026-10-28 (Day 15 complete — Control Plane foundation:
+> ExecutionJob domain/lifecycle, persistence with idempotency + optimistic
+> concurrency, Desired State evaluation, evaluate/jobs REST API, e2e
+> verification; build prerender issue resolved)
 
 ---
 
@@ -62,15 +64,20 @@ API Routes
   /api/projects/{projectId}/desired-state        (POST, GET, PUT)     ← Desired State API (Day 10)
   /api/projects/{projectId}/desired-state/{version}  (GET)            ← Desired State API (Day 10)
   /api/projects/{projectId}/actual-state/observations  (POST)         ← Actual State Ingestion API (Day 12)
+  /api/projects/{projectId}/control-plane/evaluate     (POST)         ← Control Plane API (Day 15)
+  /api/projects/{projectId}/control-plane/jobs         (GET)          ← Control Plane API (Day 15)
+  /api/projects/{projectId}/control-plane/jobs/{jobId} (GET)          ← Control Plane API (Day 15)
         ↓
 Service layer (apps/web/lib/services/desired-state.ts, actual-state.ts,
-               drift.ts, runtime-status.ts)
-        ↓  validation gate (Work 52 / Work 70 / Work 76) before any write
-Persistence layer (apps/web/lib/persistence/desired-state.ts, actual-state.ts)
+               drift.ts, runtime-status.ts, control-plane.ts)
+        ↓  validation gate (Work 52 / Work 70 / Work 76 / Work 93) before any write
+Persistence layer (apps/web/lib/persistence/desired-state.ts, actual-state.ts,
+                   execution-job.ts)
         ↓  driver adapter (@prisma/adapter-pg)
 PostgreSQL "forge"
   (Project + DesiredState tables — declared state)
   (ActualStateObservation table — observed state, Day 11 + runtime reports, Day 14)
+  (ExecutionJob table — recorded execution requests, Day 15)
 ```
 
 The Project API route still talks to Prisma directly (legacy path, unchanged).
@@ -271,14 +278,27 @@ failures, and recover predictably"**
   regression of existing workflows (92). All Day 14 capabilities are
   **service-level** — **no new HTTP endpoints, no schema changes, no
   scheduled probe loop, no automatic restart/reconcile**.
-- **Not implemented:** Control Plane, scheduler/workflow, Node Agent,
-  drift persistence, public drift/health/runtime APIs, reconciliation,
-  deployment, authentication, metrics/tracing stacks. Note for accuracy:
-  Days 11–13 delivered the Actual State and drift foundations **inside the
-  Next.js app**; the Control Plane, scheduler/workflow, and Node Agent
-  remain empty placeholder directories — Day 14 built against the real
-  existing interfaces (Actual State store, service layer, validation,
-  probes) rather than assuming those components exist.
+- Day 15 (Works 93–98) implemented the **Control Plane foundation**:
+  `ExecutionJob` domain types + runtime validation (93) and a lifecycle
+  state machine that rejects invalid transitions; Prisma model + two
+  migrations (unique `idempotencyKey`, partial unique active-job-per-intent
+  index) with optimistic status guards in persistence (94);
+  `evaluateResourceAndRequestExecution` producing eight explicit outcomes
+  and creating jobs only on drift (95); idempotent/concurrency-safe job
+  creation with bounded, classified retries (96); the evaluate/list/get
+  REST endpoints (97); and end-to-end service + API integration tests with
+  documentation updates (98). **A created job is a recorded request — no
+  execution mechanism exists, nothing was deployed or reconciled, and the
+  API never claims otherwise.**
+- **Not implemented:** execution mechanism (job executor/worker),
+  scheduler/workflow, Node Agent, drift persistence, public drift/health/
+  runtime APIs, reconciliation, deployment, authentication, metrics/tracing
+  stacks. Note for accuracy: Days 11–13 delivered the Actual State and drift
+  foundations **inside the Next.js app**; the standalone Control Plane
+  service directory, scheduler/workflow, and Node Agent remain empty
+  placeholder directories — Day 15 likewise built the Control Plane
+  foundation inside the existing Next.js + PostgreSQL stack against real
+  interfaces rather than assuming those components exist.
 
 ---
 
@@ -305,6 +325,15 @@ control-platform/  (repo root = Forge/control-panel)
 │   │   │                     ├── route.ts      (POST ingestion — Work 78)
 │   │   │                     ├── route.test.ts (route tests — Work 78)
 │   │   │                     └── e2e.test.ts   (end-to-end suite — Work 79)
+│   │   │           └── control-plane/
+│   │   │               ├── evaluate/
+│   │   │               │     ├── route.ts      (POST evaluate — Work 97)
+│   │   │               │     └── route.test.ts (route tests — Work 97)
+│   │   │               ├── jobs/
+│   │   │               │     ├── route.ts      (GET list — Work 97)
+│   │   │               │     ├── route.test.ts (route tests — Work 97)
+│   │   │               │     └── [jobId]/route.ts (GET by id — Work 97)
+│   │   │               └── e2e.test.ts         (API end-to-end suite — Work 98)
 │   │   ├── components/              (CreateProject, ProjectCard, ProjectDashboard)
 │   │   ├── types/
 │   │   │   ├── project.ts           (Project TypeScript type)
@@ -312,7 +341,8 @@ control-platform/  (repo root = Forge/control-panel)
 │   │   │   ├── actual-state.ts      (Actual State domain types, Work 70 + diagnostics/createdAt, Day 14)
 │   │   │   ├── drift.ts             (Drift result types, Work 83)
 │   │   │   ├── health-check.ts      (Health check types, Work 87)
-│   │   │   └── runtime-status.ts    (Runtime status report/view types, Work 88)
+│   │   │   ├── runtime-status.ts    (Runtime status report/view types, Work 88)
+│   │   │   └── control-plane.ts     (ExecutionJob domain types, Work 93)
 │   │   ├── lib/
 │   │   │   ├── prisma.ts            (reusable Prisma client)
 │   │   │   ├── validation/desired-state.ts       (Work 52, + .test.ts)
@@ -327,6 +357,11 @@ control-platform/  (repo root = Forge/control-panel)
 │   │   │   ├── services/runtime-status.ts        (Work 88, + runtime-status.test.ts)
 │   │   │   ├── services/runtime-status-recovery.test.ts (Work 91)
 │   │   │   ├── services/day14-integration.test.ts       (Work 92)
+│   │   │   ├── services/control-plane.ts                (Works 95–96, + .test.ts + control-plane-idempotency.test.ts)
+│   │   │   ├── services/control-plane-integration.test.ts (Work 98, 11 tests)
+│   │   │   ├── validation/execution-job.ts              (Work 93, + .test.ts — 10 tests)
+│   │   │   ├── control-plane/lifecycle.ts               (Work 93, + .test.ts — 9 tests: state machine + rejected invalid transitions)
+│   │   │   ├── persistence/execution-job.ts             (Work 94, + .test.ts — 9 tests)
 │   │   │   ├── drift/comparison.ts               (Works 81–83, + .test.ts)
 │   │   │   ├── health-check/probe.ts             (Work 87 — HTTP + static probes)
 │   │   │   ├── health-check/evaluate.ts          (Work 87 — runHealthCheck + classification)
@@ -337,10 +372,11 @@ control-platform/  (repo root = Forge/control-panel)
 │   │   │   ├── resilience/retry.ts               (Work 90 — bounded withRetry)
 │   │   │   ├── resilience/retry.test.ts          (Work 90, 16 tests)
 │   │   │   ├── api/desired-state-http.ts         (Works 65–67 response/error mapping)
-│   │   │   └── api/actual-state-http.ts          (Work 78 response/error mapping)
-│   │   ├── generated/prisma/        (generated Prisma client incl. DesiredState + ActualStateObservation)
-│   │   ├── prisma/schema.prisma     (Project model + ProjectStatus enum + DesiredState model + ObservedStatus enum + ActualStateObservation model)
-│   │   ├── prisma/migrations/       (initial_project, 20260925060845_add_desired_state, 20261017084744_add_actual_state)
+│   │   │   ├── api/actual-state-http.ts          (Work 78 response/error mapping)
+│   │   │   └── api/control-plane-http.ts         (Work 97 response/error mapping + job API data)
+│   │   ├── generated/prisma/        (generated Prisma client incl. DesiredState + ActualStateObservation + ExecutionJob)
+│   │   ├── prisma/schema.prisma     (Project model + ProjectStatus enum + DesiredState model + ObservedStatus enum + ActualStateObservation model + ExecutionJob model + ExecutionJobStatus/ExecutionJobType enums)
+│   │   ├── prisma/migrations/       (initial_project, 20260925060845_add_desired_state, 20261017084744_add_actual_state, 20261023122349_add_execution_job, 20261023123000_add_active_job_partial_unique)
 │   │   └── prisma.config.ts         (Prisma config, reads DATABASE_URL)
 │   └── api/                 ← placeholder (empty)
 ├── services/
@@ -362,7 +398,11 @@ control-platform/  (repo root = Forge/control-panel)
 ```
 
 Note: `apps/api`, `services/control-plane`, `agent/node-agent`, and
-`packages/` exist as empty scaffolding only — **no implementation yet**.
+`packages/` exist as empty scaffolding only — **no implementation yet**. The
+Day 15 Control Plane foundation lives **inside `apps/web/lib/control-plane`**
+(+ services/persistence/routes), consistent with the incremental principle;
+the standalone `services/control-plane/` directory is still a future
+engineering area.
 
 ---
 
@@ -375,10 +415,11 @@ Note: `apps/api`, `services/control-plane`, `agent/node-agent`, and
 | ORM | Prisma 7 (`prisma` + `@prisma/client` 7.10.0), `prisma.config.ts` |
 | Schema | `apps/web/prisma/schema.prisma` — `Project` model, `ProjectStatus` enum, `DesiredState` model, `ObservedStatus` enum, `ActualStateObservation` model |
 | Prisma client | `apps/web/lib/prisma.ts` — cached singleton (safe for Next.js hot reload), uses `PrismaPg` driver adapter |
-| Migrations | `initial_project` + `20260925060845_add_desired_state` + `20261017084744_add_actual_state` — applied; `prisma migrate status` = "Database schema is up to date!" |
+| Migrations | `initial_project` + `20260925060845_add_desired_state` + `20261017084744_add_actual_state` + `20261023122349_add_execution_job` + `20261023123000_add_active_job_partial_unique` — applied; `prisma migrate status` = "Database schema is up to date!" |
 | Project API | `GET /api/projects` (read from PostgreSQL), `POST /api/projects` (create in PostgreSQL) |
 | Desired State API | `POST`/`GET`/`PUT /api/projects/{projectId}/desired-state`, `GET /api/projects/{projectId}/desired-state/{version}` (Day 10, thin route handlers) |
 | Actual State Ingestion API | `POST /api/projects/{projectId}/actual-state/observations` (Day 12, thin route handler over `ingestObservation`; **unauthenticated** — local development / trusted environments only) |
+| Control Plane API | `POST /api/projects/{projectId}/control-plane/evaluate` (200 + explicit outcome, or 400/404), `GET …/control-plane/jobs` (filters `workloadId`/`status`/`jobType`/`limit`/`offset`), `GET …/control-plane/jobs/{jobId}` (404 for unknown **or another project's** job) — Day 15, thin handlers over the control-plane service; **unauthenticated** — local development / trusted environments only |
 | Service layer | `lib/services/desired-state.ts` — create, update (next-version), read current, read by version, list versions, retire; validation gate + error taxonomy (`VALIDATION_FAILED` / `NOT_FOUND` / `CONFLICT` / `PERSISTENCE_FAILED`). `lib/services/actual-state.ts` (Day 11 + 12) — `recordObservation`, `ingestObservation` (duplicate → `CONFLICT`, stale accepted), read latest, list history; validation gate + error taxonomy (`VALIDATION_FAILED` / `NOT_FOUND` / `CONFLICT` / `PERSISTENCE_FAILED`); missing latest → `null`, no error |
 | Actual State ingestion | HTTP route → ingestion validation → `ingestObservation` service → persistence; invalid input rejected before persistence; duplicate `observationId` → 409; stale (older `observedAt`) observations accepted and stored, never replacing newer |
 | Drift comparison | `lib/services/drift.ts` — `compareProjectState(projectId, workloadId = "default")` reads the current Desired State + latest observation (both read-only) and calls `lib/drift/comparison.ts` — pure `compareDesiredAndActual(desired, observation)`. Returns `no-desired-state` / `no-observation` / `compared` (+ `DriftComparisonResult`). **No HTTP endpoint; results are not persisted** (Day 13) |
@@ -387,6 +428,7 @@ Note: `apps/api`, `services/control-plane`, `agent/node-agent`, and
 | Observability | `lib/observability/logger.ts` — JSON-line logger (`debug`/`info`/`warn`/`error`, level threshold), child context, correlation ids, **key-based secret redaction** (`password`/`secret`/`token`/`credential`/`authorization`/`api-key`/… → `[REDACTED]`), write failures swallowed. Wired into health checks, runtime status, and retries. **No metrics/tracing stack introduced** (Day 14) |
 | Failure handling | `lib/resilience/classify.ts` — `retryable` / `permanent` / `invalid` by error name/code (validation → invalid; conflict/not-found/duplicate → permanent; persistence/network/timeout → retryable; unknown → retryable). `lib/resilience/retry.ts` — `withRetry` bounded attempts + exponential backoff + optional deadline; `RetryExhaustedError` preserves cause/attempts/disposition. Duplicate reports stay idempotent-by-conflict. **No auto-restart/redeploy** (Day 14) |
 | Recovery | Runtime observations survive simulated restarts (fresh client reads); monitoring recovers after temporary target outage without duplicating reports; stale-after-restart reported stale; unreachable-after-recovery stays unhealthy with diagnostics. **No automatic reconciliation** (Day 14) |
+| Control Plane | `lib/services/control-plane.ts` — `evaluateResourceAndRequestExecution` (reuses Desired State + Actual State + drift comparison; eight explicit outcomes; creates an `ExecutionJob` **only** on drift), `getExecutionJob`, `listJobs`, `advanceExecutionJob` (validated lifecycle + optimistic status guard). `lib/control-plane/lifecycle.ts` — pure transition map + `assertValidJobTransition` (terminal states absorbing). `lib/persistence/execution-job.ts` — create/read/list/update with unique `idempotencyKey`, partial unique active-job index, `expectedStatus` conflict detection. **Recording only — no execution mechanism** (Day 15) |
 | HTTP mapping | `lib/api/desired-state-http.ts` and `lib/api/actual-state-http.ts` — response envelopes (metadata + nested payload) and status mapping (400/404/409/500) |
 | Response shape | `{ success: boolean, data: ... }`; errors return `{ success: false, error: string, errors?: [...] }` |
 | Validation | Work 52 validator gates every service write; routes additionally reject malformed JSON, non-object bodies, and invalid `{version}` path params (400) |
@@ -531,6 +573,34 @@ Behavior notes:
 - **Security limitation:** the endpoint is currently **unauthenticated** —
   suitable only for local development / trusted environments; not a
   production-secure ingestion interface.
+
+### Control Plane API endpoints (implemented, Day 15)
+
+| Method + path | Behavior | Success | Errors |
+|---|---|---|---|
+| `POST /api/projects/{projectId}/control-plane/evaluate` | Evaluate current Desired State vs latest observation for a workload (default `default`) and record an execution request **only when drift requires it**. Optional body: `workloadId`, `idempotencyKey`, `correlationId`. Returns the explicit `EvaluationOutcome`. **Unauthenticated.** | 200 | 400, 404, 500 |
+| `GET /api/projects/{projectId}/control-plane/jobs` | List execution jobs with filters (`workloadId`, `status`, `jobType`) and pagination (`limit` 1–200, `offset`). Returns `{ jobs, total, limit, offset }`. **Unauthenticated.** | 200 | 400, 404, 500 |
+| `GET /api/projects/{projectId}/control-plane/jobs/{jobId}` | Fetch one job. **404 when the job does not exist *or* belongs to a different project.** **Unauthenticated.** | 200 | 404, 500 |
+
+Evaluation outcomes (all returned as `success: true` with `data.outcome`,
+except where input/project is invalid):
+
+| Outcome | Meaning | Job |
+|---|---|---|
+| `no-action` | desired and observed state match | none created |
+| `execution-requested` | drift; a `pending` job was recorded | created |
+| `already-active` | active job for the same intent exists | reused (no duplicate) |
+| `already-recorded` | client `idempotencyKey` replays a known job | reused (no duplicate) |
+| `observation-unavailable` | no observation for the workload | none |
+| `observation-stale` | newest observation older than `staleAfterMs` (default 5 min) | none |
+| `desired-state-unavailable` | no declaration to evaluate | none |
+| `evaluation-failed` | invalid/inconsistent data blocked evaluation | none |
+
+Safety notes: **200 means "the platform recorded (or did not need) a
+request" — it is never evidence that infrastructure changed.** There is no
+executor; jobs stay in their assigned status until something real moves
+them. Duplicate evaluations are collapsed by the service key and the
+database's unique constraints (see §15 Decision Log, Day 15 entries).
 
 ### Drift comparison (implemented, Day 13 — service-level, no endpoint)
 
@@ -710,6 +780,20 @@ Checklist of work actually completed in the repository:
 - [x] Recovery tests (`lib/services/runtime-status-recovery.test.ts`, 6): runtime status written before restart readable by a fresh Prisma client and after reconnect; stale-after-restart reported stale (never fresh); temporary target connectivity loss recovered with exactly 2 rows and latest = recovered; retry loop spanning an outage succeeds (and exhaustion still bounded); interrupted-report resume → conflict with single row; still-unreachable application stays unhealthy with persisted check diagnostics — Work 91
 - [x] Day 14 integration suite (`lib/services/day14-integration.test.ts`, 8): healthy runtime → accurate report → drift `match`; unhealthy runtime → report + drift `unhealthy` finding; failed health check → persisted diagnostics; stale reports per contract (newest wins, both retained, `stale` flag flips); status survives restart; duplicate-safe recovery (1 row); project/resource isolation incl. drift outcomes; Desired State workflow regression (create → update → v2 drives drift `match`) — Work 92
 - [x] Day 14 final verification (Work 92): `npm test` **114/114**, `test:persistence` **9/9**, `test:services` **105/105**, `test:api` **28/28**, `test:api:actual` **29/29**, `tsc --noEmit` clean, `eslint` clean, no schema change (migrations untouched), `npm run build` compile+typeScript stages pass but prerender of `/` fails with `ECONNREFUSED` — **verified pre-existing** by building a pristine HEAD worktree (same failure; `app/page.tsx` fetches the API at build time), `git status`/diff reviewed (Day 12/13 changes preserved; Day 14 adds only health-check/observability/resilience/runtime-status files + doc updates), README + this document updated
+- [x] Control Plane domain types (`apps/web/types/control-plane.ts`): `ExecutionJob`, `ExecutionJobDraft`, `DesiredStateRef`, `ExecutionJobFailure`, status/type enums, active/terminal helpers — Work 93
+- [x] Execution job validation (`apps/web/lib/validation/execution-job.ts`, 10 tests): required ids/enums/timestamps, positive `desiredStateVersion`, attempt bounds, structured failure shape, correlation id format — Work 93
+- [x] Lifecycle state machine (`apps/web/lib/control-plane/lifecycle.ts`, 9 tests): `pending→queued→failed|cancelled`, `queued→running|failed|cancelled`, `running→succeeded|failed|cancelled`, `failed→queued|cancelled`, terminal absorbing; `InvalidJobTransitionError`; lifecycle timestamp stamping — Work 93
+- [x] `ExecutionJob` Prisma model + migration `20261023122349_add_execution_job`; schema indexes incl. `@@unique([idempotencyKey])` — Work 94
+- [x] Partial unique migration `20261023123000_add_active_job_partial_unique` (one active job per `(projectId, workloadId, desiredStateId)`) — Work 94
+- [x] Job persistence (`apps/web/lib/persistence/execution-job.ts`, 9 tests): create/read-by-id/read-by-key/find-active/list with filters+pagination/status update with `expectedStatus` optimistic guard, attempt/failure recording, project validation, delete-by-project for tests — Work 94
+- [x] Control Plane service (`apps/web/lib/services/control-plane.ts`, 16 tests): `evaluateResourceAndRequestExecution` with eight documented outcomes; drift → pending job; match/stale/missing → no job; client + service idempotency keys; `getExecutionJob`, `listJobs`, `advanceExecutionJob` with validated transitions — Works 95–96
+- [x] Idempotency/concurrency suite (`lib/services/control-plane-idempotency.test.ts`, 9 tests): concurrent evaluations → exactly one job; reused client key → one job; transient failure retried without duplicates; exhausted retries leave no job; permanent/validation failures never retried; conflicting lifecycle updates rejected — Work 96
+- [x] Control Plane REST API (`lib/api/control-plane-http.ts` + `POST …/control-plane/evaluate`, `GET …/jobs`, `GET …/jobs/{jobId}`) with envelope/400/404/409/500 mapping, thin routes, unauthenticated (documented) — Work 97
+- [x] Route tests: evaluate (8) + jobs list/by-id (6) covering success, idempotent repeat, validation 400, unknown project/job 404, filters/pagination — Work 97
+- [x] Job-by-id route now enforces project ownership (404 for another project's job) — Work 97 fix verified in Work 98
+- [x] Day 15 end-to-end suites: `lib/services/control-plane-integration.test.ts` (11 — full flow incl. no-action on match, explicit stale/missing outcomes, persistence + service read-back, duplicate prevention, lifecycle advance, invalid transitions rejected, failed job with structured failure, no false success) and `app/api/projects/[projectId]/control-plane/e2e.test.ts` (6 — evaluate → fetch → list → repeat-safe, cross-project 404, validation, no stack/secret leakage) — Work 98
+- [x] Dashboard build issue resolved: `app/page.tsx` uses `connection()` + `cache: "no-store"` so `/` renders at request time — `npm run build` now exits 0 — Work 98
+- [x] Day 15 final verification (Work 98): `npm test` **133/133**, `test:persistence` **18/18**, `test:services` **141/141**, `test:api` **28/28**, `test:api:actual` **29/29**, `test:api:control-plane` **20/20**, `tsc --noEmit` clean, `eslint` clean, `prisma migrate status` up to date (5 migrations), `npm run build` **exit 0**, README + this document updated; **nothing committed or pushed**
 
 ### Note: desired-state-model.md (Work 45)
 
@@ -777,12 +861,12 @@ Checkbox legend: `[ ] Not started` · `[~] In progress` · `[x] Completed`
 |---|---|---|
 | 1 | Web Console | [~] |
 | 2 | API Layer | [~] |
-| 3 | Control Plane | [ ] |
+| 3 | Control Plane | [~] |
 | 4 | Desired State System | [~] |
 | 5 | Reconciliation Engine | [ ] |
 | 6 | Node Agent | [ ] |
 | 7 | Scheduler | [ ] |
-| 8 | Job / Workflow System | [ ] |
+| 8 | Job / Workflow System | [~] |
 | 9 | Container / Workload Management | [ ] |
 | 10 | Deployment Lifecycle | [ ] |
 | 11 | Health Checks | [~] |
@@ -853,16 +937,17 @@ Checkbox legend: `[ ] Not started` · `[~] In progress` · `[x] Completed`
   semantics — all test-verified. Remaining: circuit breaking, recovery
   drills against real infrastructure, and integration with a future control
   plane loop.
-- **Testing (23)** — `[~]` Five `node --test` commands: `npm test`
+- **Testing (23)** — `[~]` Six `node --test` commands: `npm test`
   (Desired State validation 13 + Actual State validation 15 + Actual State
   ingestion validation 16 + drift comparison pure 30 + health check 14 +
-  observability logger 10 + resilience 16 = **114**, no DB), persistence (9
-  integration incl. restart), service layers (**105**: Desired State 32 +
-  Actual State 20 + runtime status 14 + recovery 6 + drift service 10 +
-  drift integration 13 + Day 14 integration 10), Desired State API + e2e (28,
-  incl. cross-process restart survival), and Actual State ingestion API +
-  e2e (29, incl. live HTTP smoke test). Coverage for the wider platform
-  (console, Project API, future control plane) remains.
+  observability logger 10 + resilience 16 = 114, plus execution-job
+  validation 10 + lifecycle 9 = **133**, no DB), persistence (**18** = 9 +
+  9 execution-job persistence), service layers (**141** = 105 prior +
+  control plane 16 + control-plane idempotency 9 + Day 15 integration 11),
+  Desired State API + e2e (28, incl. cross-process restart survival),
+  Actual State ingestion API + e2e (29, incl. live HTTP smoke test), and
+  Control Plane routes + API e2e (**20**). Total: **369 tests**. Coverage
+  for the wider platform (console, Project API) remains.
 
 ---
 
@@ -879,11 +964,34 @@ Checkbox legend: `[ ] Not started` · `[~] In progress` · `[x] Completed`
 - **Major work:** Full project CRUD; error model; auth; rate limiting;
   versioning; control-plane-facing endpoints.
 
-#### 3. Control Plane — `[ ] Not started`
+#### 3. Control Plane — `[~] In progress`
 - **Goal:** The coordinating "brain" that holds desired state and drives
   lifecycle work.
-- **Major work:** Core service design; state store; job orchestration;
-  communication with the API, scheduler, queue, and agents.
+- **Status:** **Foundation implemented and verified (Day 15, Works 93–98)** —
+  `ExecutionJob` domain + validation, lifecycle state machine
+  (`pending → queued → running → succeeded | failed | cancelled`, terminal
+  absorbing states, invalid transitions rejected), Prisma persistence with
+  unique idempotency key + partial unique active-job index + optimistic
+  status guards, `evaluateResourceAndRequestExecution` (eight explicit
+  outcomes; job created only on drift; stale/missing observations handled
+  explicitly), idempotent/concurrent-safe job creation with bounded retries,
+  and the REST surface (`POST …/control-plane/evaluate`, `GET …/jobs`,
+  `GET …/jobs/{jobId}`, all unauthenticated under the existing policy).
+  **No execution happens — jobs are recorded requests only.**
+- **Major work remaining:** job executor/worker that dequeues `queued` jobs
+  and drives them to `succeeded`/`failed` through a real execution mechanism;
+  scheduler/queue integration; communication with agents; authorization for
+  the control-plane endpoints.
+
+#### 8. Job / Workflow System — `[~] In progress`
+- **Goal:** Sequence deploy/build/rollback steps reliably.
+- **Status:** **Job model + persistence + lifecycle implemented (Day 15,
+  Works 93–96)** — `ExecutionJob` records (id, project, workload, desired
+  state ref/version, type, status, idempotency key, attempts, structured
+  failure, correlation id, timestamps), validated transitions, one active
+  job per intent, optimistic concurrency on status updates.
+- **Major work remaining:** queued execution, a real executor, progress
+  reporting, workflow/step sequencing, rollback steps.
 
 #### 4. Desired State System — `[~] In progress`
 - **Goal:** Let a developer declare an environment (replicas, resources,
@@ -912,10 +1020,6 @@ Checkbox legend: `[ ] Not started` · `[~] In progress` · `[x] Completed`
 #### 7. Scheduler — `[ ] Not started`
 - **Goal:** Decide which node runs which workload.
 - **Major work:** Placement logic; resource-aware scheduling; constraints.
-
-#### 8. Job / Workflow System — `[ ] Not started`
-- **Goal:** Sequence deploy/build/rollback steps reliably.
-- **Major work:** Job model; queued execution; progress and failure handling.
 
 #### 9. Container / Workload Management — `[ ] Not started`
 - **Goal:** Create and manage containers/workloads on nodes.
@@ -999,19 +1103,22 @@ Checkbox legend: `[ ] Not started` · `[~] In progress` · `[x] Completed`
 
 #### 23. Testing — `[~] In progress`
 - **Goal:** Confidence through automated verification.
-- **Major work:** Five `node --test` commands covering the Desired State,
-  Actual State, and drift comparison paths end to end: Desired State
-  validation (13), Actual State validation (15), Actual State ingestion
-  validation (16), drift comparison pure tests (30), health-check tests (14),
-  observability logger tests (10), resilience tests (16) — **114 total in
-  `npm test` (no DB)**; persistence (9, incl. restart + error mapping);
-  service layers (**105**: Desired State 32, Actual State 20, runtime status
-  14, recovery 6, drift service 10, drift integration 13, Day 14 integration
-  10), Desired State API + e2e (28, incl. malformed JSON, isolation,
-  cross-process restart survival), and Actual State ingestion API + e2e (29,
-  incl. malformed JSON, duplicate 409, stale acceptance, live
-  HTTP smoke test). Remaining: Project API tests, console tests, migration
-  testing, and tests for future control-plane components.
+- **Major work:** Six `node --test` commands covering the Desired State,
+  Actual State, drift comparison, and Control Plane paths end to end:
+  Desired State validation (13), Actual State validation (15), Actual State
+  ingestion validation (16), drift comparison pure tests (30), health-check
+  tests (14), observability logger tests (10), resilience tests (16),
+  execution-job validation (10), lifecycle (9) — **133 total in
+  `npm test` (no DB)**; persistence (18, incl. execution-job persistence,
+  restart + error mapping); service layers (**141**: Desired State 32,
+  Actual State 20, runtime status 14, recovery 6, drift service 10, drift
+  integration 13, Day 14 integration 10, control plane 16, control-plane
+  idempotency 9, Day 15 integration 11), Desired State API + e2e (28, incl.
+  malformed JSON, isolation, cross-process restart survival), Actual State
+  ingestion API + e2e (29, incl. malformed JSON, duplicate 409, stale
+  acceptance, live HTTP smoke test), and Control Plane routes + API e2e
+  (20). **Total 369.** Remaining: Project API tests, console tests, migration
+  testing, and tests for a future execution mechanism/agent.
 
 #### 24. Security Hardening — `[ ] Not started`
 - **Goal:** Safe default posture throughout.
@@ -1103,6 +1210,41 @@ Checkbox legend: `[ ] Not started` · `[~] In progress` · `[x] Completed`
   recovery guarantees (91), and the Day 14 integration suite + full
   verification (92). All service-level — **no new endpoints, no schema
   changes, no scheduled probes, no automatic restart/reconcile**.
+- **Control Plane foundation** completed (Works 93–98): `ExecutionJob`
+  domain types + runtime validation + lifecycle state machine (93), Prisma
+  model/migrations with unique idempotency key + partial unique active-job
+  index + optimistic status guards + persistence operations (94), Desired
+  State evaluation producing eight explicit outcomes and creating jobs only
+  on drift (95), idempotent/concurrency-safe job creation with bounded,
+  classified retries (96), the evaluate/list/get REST endpoints (97), and
+  end-to-end service + API integration tests with documentation updates
+  (98). **A job is a recorded request — nothing was deployed, reconciled,
+  or remediated, and no execution mechanism exists.**
+
+**Day 15 verification evidence (2026-10-28):**
+- `npx tsc --noEmit` — clean (exit 0).
+- `npm run lint` (eslint) — clean (0 errors, 0 warnings).
+- `npm test` (validation + lifecycle + drift pure + health + logger +
+  resilience; no DB) — **133/133 pass**.
+- `npm run test:persistence` — **18/18 pass** (incl. execution-job
+  persistence: duplicate idempotency key, partial unique active job,
+  optimistic-lock conflict, filters/pagination).
+- `npm run test:services` — **141/141 pass** (incl. control plane 16,
+  idempotency/concurrency 9, Day 15 integration 11).
+- `npm run test:api` — **28/28 pass**; `npm run test:api:actual` —
+  **29/29 pass** (no regressions).
+- `npm run test:api:control-plane` — **20/20 pass** (evaluate 8 + jobs 6 +
+  API e2e 6).
+- `npx prisma migrate status` — "Database schema is up to date!" (5
+  migrations; Day 15 added `add_execution_job` and
+  `add_active_job_partial_unique`).
+- `npm run build` — **exit 0**. The previously documented prerender failure
+  of `/` (`ECONNREFUSED` from a build-time API fetch) was reproduced against
+  the current tree and **fixed within scope** by making the dashboard page
+  request-time rendered (`connection()` + `cache: "no-store"`); it is no
+  longer a known limitation.
+- `git status` / `git diff` reviewed: all Day 15 work left **uncommitted**;
+  no commit or push performed.
 
 **Day 14 verification evidence (2026-10-21):**
 - `npm run typecheck` (`tsc --noEmit`) — clean.
@@ -1190,26 +1332,27 @@ Checkbox legend: `[ ] Not started` · `[~] In progress` · `[x] Completed`
   adds only drift comparison files, one test script line, and docs.
 
 ### What is currently in progress
-- Nothing. **Day 14 (Works 87–92) is complete.** No work block is active.
+- Nothing. **Day 15 (Works 93–98) is complete.** No work block is active.
 
 ### What comes next
-- **Day 15** — make the observation/health/status work reachable and
-  actionable: a documented drift endpoint over the existing service (if the
-  API contract is extended) and/or the Desired State console surface, then
-  the Control Plane foundations. See §12.
+- **Day 16** — expose drift/runtime status to consumers (documented
+  read-only endpoints if the API contract is extended) and/or the Desired
+  State console surface, then the execution mechanism that dequeues recorded
+  jobs. See §12.
 
 ---
 
 ## 12. Next Immediate Work
 
-**Day 15: expose the work to consumers, then start the Control Plane.**
+**Day 16: expose drift/status to consumers, then make jobs executable.**
 
-Day 14 (Works 87–92) delivered health probing, runtime status reporting,
-structured observability, classified/bounded failure handling, and
-restart/outage recovery — all service-level and test-verified, with no new
-HTTP surfaces and no schema changes.
+Day 15 (Works 93–98) delivered the Control Plane foundation — ExecutionJob
+domain/lifecycle, persistence with idempotency + concurrency guards,
+Desired State evaluation with eight explicit outcomes, bounded classified
+retries, and the evaluate/list/get REST endpoints — all service- and
+route-tested, with **no execution** of any recorded job.
 
-Planned order for Day 15 (engineering areas: Drift Detection / API Layer /
+Planned order for Day 16 (engineering areas: Drift Detection / API Layer /
 Control Plane):
 
 1. **Comparison API (if the API contract is extended)** — a documented,
@@ -1225,18 +1368,22 @@ Control Plane):
 3. **Desired State console surface (parallel track)** — expose the now-live
    Desired State API in the Web Console (declare/view/update from the
    dashboard) so the portfolio story has a UI.
-4. **Control Plane foundation (start)** — the first engineering-area work
-   for the coordinating service: state hand-off from Desired State +
-   observation reads, a job/operation model with idempotent execution
-   (reusing `lib/resilience` concepts), and the boundary where a future
-   scheduler and Node Agent attach.
+4. **Execution mechanism (next Control Plane step)** — a worker/loop that
+   claims `queued` jobs, drives them through `running` → `succeeded` /
+   `failed` using `assertValidJobTransition` + attempt limits, and performs
+   a *real* operation only where one genuinely exists (today: none — an
+   executor that cannot act must report `failed` with structured diagnostics
+   rather than fabricate success).
+5. **Job lifecycle endpoint (optional)** — a `POST …/jobs/{jobId}` cancel or
+   advance route if consumers need to move jobs, keeping the existing
+   envelope and 409 conflict semantics.
 
 > **Reconciliation, automatic remediation, deployment, and rollback are NOT
-> implemented and are out of scope** until the Control Plane and Node Agent
-> exist. Drift results are still not persisted anywhere, health checks are
-> still not scheduled, and runtime status has no public endpoint. The
-> Control Plane as a standalone service (Go/Redis, etc.) remains a later
-> engineering area; Day 15 keeps new work inside the existing Next.js +
+> implemented and are out of scope** until a real execution mechanism and
+> Node Agent exist. Drift results are still not persisted anywhere, health
+> checks are still not scheduled, and runtime status has no public endpoint.
+> The Control Plane as a standalone service (Go/Redis, etc.) remains a later
+> engineering area; Day 16 keeps new work inside the existing Next.js +
 > PostgreSQL stack unless a real need forces the boundary, consistent with
 > the incremental implementation principle.
 
@@ -1248,8 +1395,8 @@ Control Plane):
 |---|---|
 | Overall completion target | **December 10, 2026** — fixed 90-day target set by the project owner (supersedes the original 120-day figure below) |
 | Start date | **2026-09-12** (derived from the first Git commit: `c21e802 day 1 complete to define platform architecture`) |
-| Current day / stage | **Day 14 complete** (as of 2026-10-21) — Desired State service + REST API (Day 10), Actual State ingestion REST API (Day 12), drift comparison foundation (Day 13), and health/runtime/observability/resilience foundation (Day 14: probe-based health checks, runtime status reporting, structured logging, bounded retries, restart/outage recovery); reconciliation and Control Plane not started |
-| Remaining runway | ~50 days to the December 10 target (2026-10-21 → 2026-12-10) |
+| Current day / stage | **Day 15 complete** (as of 2026-10-28) — everything from Day 14 plus the **Control Plane foundation**: ExecutionJob domain + lifecycle, persistence with idempotency/optimistic-concurrency, Desired State evaluation, idempotent job creation, evaluate/list/get REST API, e2e verification. Reconciliation, execution, and the standalone control-plane service not started |
+| Remaining runway | ~43 days to the December 10 target (2026-10-28 → 2026-12-10) |
 
 > The original working note recorded a 120-day target (→ 2027-01-10). The
 > project owner has since fixed the completion target at **December 10,
@@ -1261,14 +1408,14 @@ Control Plane):
 
 | Item | Value |
 |---|---|
-| Overall project status | Both halves of the control loop have storage and ingress (Days 10–12), drift comparison (Day 13), and Day 14 added the health/runtime/resilience layer: Desired State service layer + validated, versioned REST API; Actual State observation foundation + ingestion REST API; drift comparison (pure function + six categories + read-only `compareProjectState` service); health-check probing with timeout/failure classification; runtime status reporting with staleness + transition logging; structured redacting logger; classified failures + bounded retries + restart/outage recovery. Reconciliation not started. |
-| Completed engineering areas | Database/ORM foundation; project API GET/POST; persistence; Desired State System declared-state (types, validation, storage, domain↔persistence, service layer, REST API, error handling); Actual State observation foundation (types, validation, storage design, Prisma model + migration, domain↔persistence, service layer); Actual State ingestion (contract, validation, service flow, REST API); Drift comparison foundation (pure comparison, six categories, structured result, comparison service); Health Checks foundation (probe + evaluation + tests, [~] partial); Observability/Logging foundation (structured redacting logger, [~] partial); Reliability foundation (failure classification + bounded retry + recovery, [~] partial); Testing (validation + drift + health + logger + resilience 114 + persistence 9 + services 105 + desired-state API/e2e 28 + actual-state API/e2e 29); documentation (27, 70–71, 75, Day 14 updates) |
-| Active engineering area | None — Day 14 closed |
-| Next engineering area | Day 15: drift/status exposure (documented read-only endpoints if the contract is extended) and/or Desired State console UI; start of Control Plane foundation (§12) |
+| Overall project status | Both halves of the control loop have storage and ingress (Days 10–12), drift comparison (Day 13), Day 14 added the health/runtime/resilience layer, and Day 15 added the **Control Plane foundation**: Desired State service layer + validated, versioned REST API; Actual State observation foundation + ingestion REST API; drift comparison (pure function + six categories + read-only `compareProjectState` service); health-check probing with timeout/failure classification; runtime status reporting with staleness + transition logging; structured redacting logger; classified failures + bounded retries + restart/outage recovery; **ExecutionJob domain + lifecycle, idempotent/concurrency-safe persistence, Desired State evaluation (eight explicit outcomes), evaluate/list/get REST API**. Jobs are recorded requests — **nothing is executed or reconciled yet**. |
+| Completed engineering areas | Database/ORM foundation; project API GET/POST; persistence; Desired State System declared-state (types, validation, storage, domain↔persistence, service layer, REST API, error handling); Actual State observation foundation (types, validation, storage design, Prisma model + migration, domain↔persistence, service layer); Actual State ingestion (contract, validation, service flow, REST API); Drift comparison foundation (pure comparison, six categories, structured result, comparison service); Health Checks foundation (probe + evaluation + tests, [~] partial); Observability/Logging foundation (structured redacting logger, [~] partial); Reliability foundation (failure classification + bounded retry + recovery, [~] partial); Control Plane foundation [~] (ExecutionJob domain/validation/lifecycle, persistence + migrations, evaluation service, idempotent job creation, REST endpoints, Works 93–98); Testing (validation + drift + health + logger + resilience + lifecycle 133 + persistence 18 + services 141 + desired-state API/e2e 28 + actual-state API/e2e 29 + control-plane API/e2e 20 = **369**); documentation (27, 70–71, 75, Day 14 updates, Day 15 README + this document) |
+| Active engineering area | None — Day 15 closed |
+| Next engineering area | Day 16: drift/status exposure (documented read-only endpoints if the contract is extended) and/or Desired State console UI; then the execution mechanism for recorded jobs (§12) |
 | Blockers | None currently |
-| Technical debt | Day 8 portfolio verification projects remain in `forge` DB (`Prisma Test App`, `Persistence Check 2026`, `Post Cleanup Check`, `Final Verification 2026`) — treated as real data, kept by design; placeholder directories empty but intentional; `desired-state-model.md` (Work 45) absent as a standalone file — model captured in `desired-state.md` §4; Project API route still accesses Prisma directly (legacy path predating the service layer — adopting the service pattern there is low-priority future cleanup); `next build` fails prerendering the dashboard page because it fetches the API at build time (**pre-existing, confirmed against a pristine HEAD build; unrelated to Days 10–14; dev server unaffected**); retirement has no public HTTP endpoint (contract gap, see §7); Actual State ingestion endpoint is **unauthenticated** (documented limitation, see §7 and `docs/actual-state-ingestion.md` §10); drift comparison has **no HTTP endpoint and no persistence** (Day 13 scope); health checks / runtime status have **no HTTP endpoints and no scheduled probe loop** (Day 14 scope, service-level only); observability is **structured logging only** — no metrics/tracing pipeline (deliberately not introduced) |
+| Technical debt | Day 8 portfolio verification projects remain in `forge` DB (`Prisma Test App`, `Persistence Check 2026`, `Post Cleanup Check`, `Final Verification 2026`) — treated as real data, kept by design; placeholder directories empty but intentional; `desired-state-model.md` (Work 45) absent as a standalone file — model captured in `desired-state.md` §4; Project API route still accesses Prisma directly (legacy path predating the service layer — adopting the service pattern there is low-priority future cleanup); ~~`next build` prerender failure~~ **resolved Day 15** (page now uses `connection()` + `cache: "no-store"`; build exits 0); retirement has no public HTTP endpoint (contract gap, see §7); Actual State ingestion **and Control Plane endpoints** are **unauthenticated** (documented limitation, see §7 and `docs/actual-state-ingestion.md` §10); drift comparison has **no HTTP endpoint and no persistence** (Day 13 scope); health checks / runtime status have **no HTTP endpoints and no scheduled probe loop** (Day 14 scope, service-level only); observability is **structured logging only** — no metrics/tracing pipeline (deliberately not introduced); **no execution mechanism exists** — recorded jobs are never dequeued or run (Day 15 scope, documented) |
 | Important decisions | See Decision Log below |
-| Last verified state | 2026-10-21 — Day 14 closed by Work 92: typecheck clean; eslint clean; unit (validation+drift+health+logger+resilience) 114/114; persistence 9/9; services 105/105; desired-state API+e2e 28/28; actual-state API+e2e 29/29; migrations up to date (no schema change in Day 14); `next build` prerender failure confirmed pre-existing via pristine HEAD worktree build |
+| Last verified state | 2026-10-28 — Day 15 closed by Work 98: typecheck clean; eslint clean; unit 133/133; persistence 18/18; services 141/141; desired-state API+e2e 28/28; actual-state API+e2e 29/29; control-plane API+e2e 20/20; migrations up to date (5 total, 2 added in Day 15); `next build` exit 0 (prerender issue fixed) |
 
 ---
 
@@ -1413,30 +1560,34 @@ untracked in the diff.
 1. **Read this document** — understand where FORGE is and what the target architecture is.
 2. **Check current Git status** — see if the Day 10 (Works 59–69),
    Day 11 (Works 70–74), Day 12 (Works 75–80), Day 13 (Works 81–85),
-   and Day 14 (Works 87–92) work was committed since this doc was written.
+   Day 14 (Works 87–92), and Day 15 (Works 93–98) work was committed since
+   this doc was written.
 3. **Verify the current implementation** — run from `apps/web`:
    - `npm run typecheck` (`tsc --noEmit`)
    - `npm run lint`
-   - `npm test` (validation + pure drift comparison + health check +
-     observability + resilience suites, no DB needed — 114 tests)
-   - `npm run test:persistence` (integration; leaves no data)
+   - `npm test` (validation + lifecycle + pure drift comparison + health
+     check + observability + resilience suites, no DB needed — 133 tests)
+   - `npm run test:persistence` (integration incl. execution jobs; leaves no data)
    - `npm run test:services` (service layers incl. runtime status,
-     recovery, Day 14 integration; leaves no data)
+     recovery, Day 14 integration, control plane + idempotency + Day 15
+     integration; leaves no data)
    - `npm run test:api` (desired-state route + e2e suites; leaves no data)
    - `npm run test:api:actual` (actual-state ingestion route + e2e suites; leaves no data)
+   - `npm run test:api:control-plane` (evaluate/jobs routes + API e2e; leaves no data)
    - `npx prisma migrate status` ("Database schema is up to date!")
+   - `npm run build` (succeeds since Day 15 — `/` renders at request time)
    - `npm run dev` then exercise the API, e.g.
      `POST/GET/PUT /api/projects/{projectId}/desired-state`,
-     `GET /api/projects/{projectId}/desired-state/{version}`, and
-     `POST /api/projects/{projectId}/actual-state/observations`.
-   - Note: `npm run build` currently fails prerendering the dashboard page
-     (`ECONNREFUSED`, pre-existing — see §14); use `npm run dev` for manual
-     checks.
-4. **Continue from the next phase (Day 15)** — expose the comparison and
+     `GET /api/projects/{projectId}/desired-state/{version}`,
+     `POST /api/projects/{projectId}/actual-state/observations`, and
+     `POST /api/projects/{projectId}/control-plane/evaluate`,
+     `GET /api/projects/{projectId}/control-plane/jobs`.
+4. **Continue from the next phase (Day 16)** — expose the comparison and
    runtime status to consumers per §12 (documented read-only drift/status
    endpoints if the API contract is extended, and/or the Desired State
-   console surface), then start the Control Plane foundation.
-   Reconciliation remains a future phase.
+   console surface), then build the execution mechanism for recorded jobs.
+   Reconciliation remains a future phase — do not treat a recorded job as a
+   deployment.
 5. **Update `PROJECT_STATUS.md`** after major milestones (new engineering area
    started/completed, architecture changes, deadline/schedule changes).
 6. **Commit meaningful completed work** — with clear, conventional messages;
@@ -1445,4 +1596,4 @@ untracked in the diff.
 ---
 
 *This document distinguishes **implemented** from **planned**. Checkbox marks
-reflect work actually done in the repository as of 2026-10-21 (Day 14).*
+reflect work actually done in the repository as of 2026-10-28 (Day 15).*

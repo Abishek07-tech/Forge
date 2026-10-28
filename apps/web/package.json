@@ -8,11 +8,12 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --test lib/validation/desired-state.test.ts lib/validation/actual-state.test.ts lib/validation/actual-state-ingestion.test.ts lib/drift/comparison.test.ts lib/health-check/health-check.test.ts lib/observability/logger.test.ts lib/resilience/retry.test.ts",
-    "test:persistence": "node --env-file=.env --test lib/persistence/desired-state.test.ts",
-    "test:services": "node --env-file=.env --test lib/services/desired-state.test.ts lib/services/actual-state.test.ts lib/services/runtime-status.test.ts lib/services/runtime-status-recovery.test.ts lib/services/drift.test.ts lib/services/drift-integration.test.ts lib/services/day14-integration.test.ts",
+    "test": "node --test lib/validation/desired-state.test.ts lib/validation/actual-state.test.ts lib/validation/actual-state-ingestion.test.ts lib/validation/execution-job.test.ts lib/control-plane/lifecycle.test.ts lib/drift/comparison.test.ts lib/health-check/health-check.test.ts lib/observability/logger.test.ts lib/resilience/retry.test.ts",
+    "test:persistence": "node --env-file=.env --test lib/persistence/desired-state.test.ts lib/persistence/execution-job.test.ts",
+    "test:services": "node --env-file=.env --test lib/services/desired-state.test.ts lib/services/actual-state.test.ts lib/services/runtime-status.test.ts lib/services/runtime-status-recovery.test.ts lib/services/drift.test.ts lib/services/drift-integration.test.ts lib/services/day14-integration.test.ts lib/services/control-plane.test.ts lib/services/control-plane-idempotency.test.ts lib/services/control-plane-integration.test.ts",
     "test:api": "node --env-file=.env --test \"app/api/projects/*/desired-state/route.test.ts\" \"app/api/projects/*/desired-state/e2e.test.ts\"",
-    "test:api:actual": "node --env-file=.env --test \"app/api/projects/*/actual-state/observations/route.test.ts\" \"app/api/projects/*/actual-state/observations/e2e.test.ts\""
+    "test:api:actual": "node --env-file=.env --test \"app/api/projects/*/actual-state/observations/route.test.ts\" \"app/api/projects/*/actual-state/observations/e2e.test.ts\"",
+    "test:api:control-plane": "node --env-file=.env --test \"app/api/projects/*/control-plane/evaluate/route.test.ts\" \"app/api/projects/*/control-plane/jobs/route.test.ts\" \"app/api/projects/*/control-plane/e2e.test.ts\""
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
